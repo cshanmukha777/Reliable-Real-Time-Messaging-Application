@@ -56,78 +56,86 @@ alter table public.conversation_participants enable row level security;
 alter table public.messages enable row level security;
 alter table public.message_receipts enable row level security;
 
+-- SECURITY DEFINER avoids recursive RLS evaluation when checking membership.
+create or replace function public.is_conversation_participant(target_conversation_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1
+    from public.conversation_participants cp
+    where cp.conversation_id = target_conversation_id
+      and cp.user_id = (select auth.uid())
+  );
+$$;
+
+revoke all on function public.is_conversation_participant(uuid) from public;
+grant execute on function public.is_conversation_participant(uuid) to authenticated;
+
 create policy "Authenticated users can read profiles"
   on public.profiles for select to authenticated using (true);
 create policy "Users can insert their own profile"
   on public.profiles for insert to authenticated with check (auth.uid() = id);
 create policy "Users can update their own profile"
-  on public.profiles for update to authenticated using (auth.uid() = id) with check (auth.uid() = id);
+  on public.profiles for update to authenticated
+  using (auth.uid() = id) with check (auth.uid() = id);
 
 create policy "Participants can read conversations"
   on public.conversations for select to authenticated
-  using (
-    exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = id and cp.user_id = auth.uid()
-    )
-  );
+  using (public.is_conversation_participant(id));
 create policy "Authenticated users can create conversations"
   on public.conversations for insert to authenticated
   with check (created_by = auth.uid());
 
-create policy "Users can read participant lists for their conversations"
+create policy "Participants can read participant lists"
   on public.conversation_participants for select to authenticated
-  using (
-    exists (
-      select 1 from public.conversation_participants own
-      where own.conversation_id = conversation_id and own.user_id = auth.uid()
-    )
-  );
-create policy "Users can join a conversation as themselves"
+  using (public.is_conversation_participant(conversation_id));
+create policy "Conversation creator or participant can add members"
   on public.conversation_participants for insert to authenticated
-  with check (user_id = auth.uid());
+  with check (
+    exists (
+      select 1 from public.conversations c
+      where c.id = conversation_id and c.created_by = auth.uid()
+    )
+    or public.is_conversation_participant(conversation_id)
+  );
 
 create policy "Participants can read messages"
   on public.messages for select to authenticated
-  using (
-    exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = conversation_id and cp.user_id = auth.uid()
-    )
-  );
+  using (public.is_conversation_participant(conversation_id));
 create policy "Participants can send messages as themselves"
   on public.messages for insert to authenticated
   with check (
     sender_id = auth.uid()
-    and exists (
-      select 1 from public.conversation_participants cp
-      where cp.conversation_id = conversation_id and cp.user_id = auth.uid()
-    )
+    and public.is_conversation_participant(conversation_id)
   );
 
-create policy "Participants can read receipts"
+create policy "Conversation participants can read receipts"
   on public.message_receipts for select to authenticated
   using (
     exists (
-      select 1
-      from public.messages m
-      join public.conversation_participants cp
-        on cp.conversation_id = m.conversation_id
-      where m.id = message_id and cp.user_id = auth.uid()
+      select 1 from public.messages m
+      where m.id = message_id
+        and public.is_conversation_participant(m.conversation_id)
     )
   );
-create policy "Users can acknowledge messages addressed to their conversations"
+create policy "Users can create their own receipts"
   on public.message_receipts for insert to authenticated
   with check (
     user_id = auth.uid()
     and exists (
-      select 1
-      from public.messages m
-      join public.conversation_participants cp
-        on cp.conversation_id = m.conversation_id
-      where m.id = message_id and cp.user_id = auth.uid()
+      select 1 from public.messages m
+      where m.id = message_id
+        and public.is_conversation_participant(m.conversation_id)
     )
   );
+create policy "Users can update their own receipts"
+  on public.message_receipts for update to authenticated
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
--- Enable the required tables in the Supabase Realtime publication
--- through the Supabase dashboard after reviewing deployment requirements.
+-- Add messages and message_receipts to the Supabase Realtime publication
+-- in the Supabase dashboard after reviewing deployment requirements.
