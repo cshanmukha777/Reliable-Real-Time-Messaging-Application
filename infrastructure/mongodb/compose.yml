@@ -1,0 +1,33 @@
+name: chatapp-mongodb
+
+services:
+  mongo:
+    image: mongo:7.0.40
+    command:
+      ['mongod', '--replSet', 'chatapp-rs', '--bind_ip_all', '--port', '27017']
+    ports:
+      - '127.0.0.1:${CHATAPP_MONGO_PORT:-27017}:27017'
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'mongosh',
+          '--quiet',
+          '--eval',
+          'quit(db.hello().isWritablePrimary && db.hello().setName === "chatapp-rs" ? 0 : 1)',
+        ]
+      interval: 3s
+      timeout: 4s
+      retries: 30
+  mongo-init:
+    image: mongo:7.0.40
+    depends_on:
+      mongo:
+        condition: service_started
+    volumes:
+      - ./init-replica.js:/init-replica.js:ro
+    entrypoint: ['mongosh', '--nodb', '--quiet', '/init-replica.js']
+volumes:
+  mongo-data:
