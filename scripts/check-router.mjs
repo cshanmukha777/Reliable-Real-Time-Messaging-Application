@@ -11,7 +11,7 @@ const manifest = JSON.parse(
 assert.equal(manifest.main, 'expo-router/entry');
 assert.ok(config.plugins.includes('expo-router'));
 assert.ok(config.experiments.typedRoutes);
-assert.deepEqual(config.platforms.toSorted(), ['android', 'ios']);
+assert.deepEqual(config.platforms.toSorted(), ['android', 'ios', 'web']);
 for (const route of ['_layout', 'index', 'settings']) {
   await access(new URL(`app/${route}.tsx`, mobile));
 }
