@@ -1,0 +1,21 @@
+{
+  "expo": {
+    "name": "ChatApp",
+    "slug": "chatapp",
+    "scheme": "chatapp",
+    "version": "0.2.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "platforms": ["ios", "android"],
+    "ios": {
+      "bundleIdentifier": "com.cshanmukha777.chatapp",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "Connect to the ChatApp development server on your local network."
+      }
+    },
+    "android": { "package": "com.cshanmukha777.chatapp" },
+    "plugins": ["expo-router", "expo-sqlite"],
+    "experiments": { "typedRoutes": true }
+  }
+}
