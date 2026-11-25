@@ -1,6 +1,6 @@
 # ChatApp
 
-ChatApp is a university capstone for reliable messaging on iOS and Android. The Stage 2 workspace contains an Expo Router shell with persistent settings, a NestJS health API, shared TypeScript contracts, and a local MongoDB replica set.
+ChatApp is a university capstone for reliable messaging on iOS and Android. The workspace contains an Expo Router messaging design and developer preview, persistent native settings, a NestJS health API, shared TypeScript contracts, and a local MongoDB replica set.
 
 ## Quick start
 
@@ -27,6 +27,7 @@ In another terminal, after setting the mobile API address, run `npm run dev:mobi
 - [Environment configuration](docs/ENVIRONMENT.md)
 - [MongoDB replica-set setup](docs/DATABASE_SETUP.md)
 - [Stage 2 implementation and verification](docs/STAGE_2_IMPLEMENTATION.md)
+- [Stage 3 design preview and screenshots](docs/STAGE_3_IMPLEMENTATION.md)
 - [Architecture](docs/ARCHITECTURE.md), [ADR](docs/ADR/0001-system-architecture.md), and [implementation roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 - [Baseline audit](docs/PROJECT_AUDIT.md), [feature matrix](docs/FEATURE_MATRIX.md), and [quality gates](docs/QUALITY_GATES.md)
 

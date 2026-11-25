@@ -30,12 +30,21 @@ for (const file of tracked) {
   );
 }
 
+const previewPhoto = await readFile(
+  'apps/mobile/src/previews/design-system/rain-window.jpg',
+);
+
 async function verifyOutput(directory) {
   let bundles = 0;
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
     if (entry.isDirectory()) {
       bundles += await verifyOutput(path);
+    } else if (/\.jpe?g$/i.test(entry.name)) {
+      assert.ok(
+        !(await readFile(path)).equals(previewPhoto),
+        `Preview photo found in ${path}`,
+      );
     } else if (/\.(?:js|hbc|json|map)$/.test(entry.name)) {
       const emitted = await readFile(path, 'utf8');
       assert.ok(
@@ -43,6 +52,12 @@ async function verifyOutput(directory) {
           emitted,
         ),
         `Server configuration found in ${path}`,
+      );
+      assert.ok(
+        !/Sunday field notes|I saved you the seat|rain-window\.jpg/.test(
+          emitted,
+        ),
+        `Design preview content found in ${path}`,
       );
       if (/\.(?:js|hbc)$/.test(entry.name)) bundles += 1;
     }

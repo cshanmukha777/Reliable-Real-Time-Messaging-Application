@@ -1,40 +1,50 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Metro drops this fixture branch from release bundles. */
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, Text, View } from 'react-native';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
-import {
-  FoundationProvider,
-  styles,
-  usePalette,
-  type Foundation,
-} from '../src/foundation';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { AppScreen, AppText } from '../src/components/primitives';
+import { ErrorState, LoadingState } from '../src/components/feedback';
+import { ThemeProvider, useReducedMotion, useTheme } from '../src/design/theme';
+import { FoundationProvider, type Foundation } from '../src/foundation';
 import { openPreferences } from '../src/preferences';
 
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
-  const palette = usePalette();
   return (
-    <View style={[styles.center, { backgroundColor: palette.background }]}>
-      <Text
-        accessibilityRole="header"
-        style={[styles.heading, { color: palette.foreground }]}
-      >
-        ChatApp couldn’t open
-      </Text>
-      <Text style={[styles.text, { color: palette.muted }]}>
-        Check your local storage and build configuration, then try again.
-      </Text>
-      <Button title="Try again" onPress={retry} />
-    </View>
+    <SafeAreaProvider>
+      <ThemeProvider>
+        <AppScreen>
+          <ErrorState
+            title="ChatApp couldn’t open"
+            detail="Check your local storage and build configuration, then try again."
+            onRetry={retry}
+          />
+        </AppScreen>
+      </ThemeProvider>
+    </SafeAreaProvider>
   );
 }
 
-export default function RootLayout() {
+function NativeRoutes() {
+  const { colors, isDark } = useTheme();
+  const reduced = useReducedMotion();
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+        statusBarStyle: isDark ? 'light' : 'dark',
+        animation: reduced ? 'none' : 'fade',
+      }}
+    />
+  );
+}
+
+function NativeFoundation() {
   const [state, setState] = useState<Omit<
     Foundation,
     'updateConfiguration'
   > | null>(null);
   const [failed, setFailed] = useState(false);
-  const palette = usePalette(state?.configuration.appearance);
-
   useEffect(() => {
     let active = true;
     openPreferences().then(
@@ -49,20 +59,15 @@ export default function RootLayout() {
       active = false;
     };
   }, []);
-
   if (failed) throw new Error('Application initialization failed.');
-  if (!state) {
+  if (!state)
     return (
-      <View style={[styles.center, { backgroundColor: palette.background }]}>
-        <ActivityIndicator
-          accessibilityLabel="Opening local storage"
-          color={palette.accent}
-        />
-        <Text style={{ color: palette.foreground }}>Opening ChatApp…</Text>
-      </View>
+      <ThemeProvider>
+        <AppScreen>
+          <LoadingState />
+        </AppScreen>
+      </ThemeProvider>
     );
-  }
-
   return (
     <FoundationProvider
       value={{
@@ -80,17 +85,39 @@ export default function RootLayout() {
           ),
       }}
     >
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: palette.background },
-          contentStyle: { backgroundColor: palette.background },
-          headerTintColor: palette.foreground,
-          statusBarStyle: palette.dark ? 'light' : 'dark',
-        }}
-      >
-        <Stack.Screen name="index" options={{ title: 'ChatApp' }} />
-        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
-      </Stack>
+      <ThemeProvider appearance={state.configuration.appearance}>
+        <NativeRoutes />
+      </ThemeProvider>
     </FoundationProvider>
+  );
+}
+
+export default function RootLayout() {
+  if (process.env.EXPO_OS === 'web') {
+    if (__DEV__ && process.env.EXPO_PUBLIC_DESIGN_PREVIEW === '1') {
+      const { DesignPreview } =
+        require('../src/previews/design-system/preview') as typeof import('../src/previews/design-system/preview');
+      return (
+        <SafeAreaProvider>
+          <DesignPreview />
+        </SafeAreaProvider>
+      );
+    }
+    return (
+      <SafeAreaProvider>
+        <ThemeProvider>
+          <AppScreen scroll>
+            <AppText accessibilityRole="header" variant="heading">
+              ChatApp for iOS and Android
+            </AppText>
+          </AppScreen>
+        </ThemeProvider>
+      </SafeAreaProvider>
+    );
+  }
+  return (
+    <SafeAreaProvider>
+      <NativeFoundation />
+    </SafeAreaProvider>
   );
 }
