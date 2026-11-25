@@ -1,82 +1,31 @@
 # Reliable Real-Time Messaging Application
 
-A mobile-first messaging application designed to keep conversations understandable and reliable when connectivity is slow, intermittent, or unavailable.
+ChatApp is a university capstone for reliable messaging on iOS and Android. It is designed to keep message state understandable when a network is slow, intermittent or unavailable.
 
-## Project goals
+The repository currently contains the Stage 1 audit, architecture, implementation plan and legacy schema. Application setup and executable build commands arrive with the Stage 2 foundation.
 
-- Real-time one-to-one messaging without periodic message-history polling
-- Clear message lifecycle: queued, sending, sent, delivered, read, and failed
-- Offline-first outgoing message queue with safe retry
-- Idempotent message submission to prevent duplicate messages
-- Live online presence and typing indicators
-- Persistent conversation history and read acknowledgements
+## Target stack
 
-## Planned technology
+| Layer | Technology |
+| --- | --- |
+| Mobile | React Native, Expo, TypeScript and Expo Router |
+| Backend | NestJS REST API and Socket.IO over WebSockets |
+| Server persistence | MongoDB replica set via Prisma, plus private object storage for attachments |
+| Local persistence | Expo SQLite for the cache and durable outgoing queue |
+| Desktop milestone | Electron client and macOS DMG |
 
-- **Mobile:** React Native, Expo, TypeScript, Expo Router
-- **Backend:** Supabase (PostgreSQL, Auth, Realtime)
-- **Local persistence:** Expo SQLite
-- **Quality:** TypeScript, ESLint, and focused device testing
+The system uses stable client message IDs, a durable local queue, idempotent server writes and reconnect replay. The sender sees delivery and read states only after recipient acknowledgements.
 
-## Getting started
+## Project documentation
 
-### Prerequisites
-
-- Node.js LTS and npm
-- Expo Go on a physical device, or an Android/iOS simulator
-- A Supabase project
-
-### Create the Expo application
-
-Clone the repository, then scaffold the current Expo Router tabs template into the repository root:
-
-```bash
-git clone https://github.com/cshanmukha777/Reliable-Real-Time-Messaging-Application.git
-cd Reliable-Real-Time-Messaging-Application
-npx create-expo-app@latest . --template tabs
-```
-
-If the scaffold command reports that the directory is not empty, preserve the existing documentation and scaffold into a temporary directory before copying the generated application files into this repository.
-
-Install Supabase and local persistence using Expo-compatible package versions:
-
-```bash
-npx expo install @supabase/supabase-js expo-sqlite
-```
-
-Copy `.env.example` to `.env` and enter the Supabase project URL and publishable/anon key:
-
-```bash
-cp .env.example .env
-npx expo start
-```
-
-Never commit `.env`, service-role keys, access tokens, or other secrets. The mobile app must only use a Supabase publishable/anon key and enforce access through Row Level Security.
-
-## Implementation roadmap
-
-- [ ] Expo + TypeScript application scaffold
-- [ ] Supabase client and authentication
-- [ ] Profiles and one-to-one conversations
-- [ ] Persistent message history and realtime subscriptions
-- [ ] Outgoing message queue and visible delivery states
-- [ ] Idempotent retry and reconnect synchronization
-- [ ] Presence, typing indicators, and read receipts
-- [ ] Two-device reliability test and demo recording
-
-## Reliability principles
-
-1. Generate a stable client-side UUID for each outgoing message before attempting network delivery.
-2. Persist the message locally before sending it.
-3. Reuse the same UUID on every retry; enforce a unique constraint in the database.
-4. Treat realtime events as updates, not as the only source of truth. Reconcile persisted server state after reconnect.
-5. Do not show a message as delivered or read until the corresponding acknowledgement is received.
-6. Keep failed messages and their text visible so users can retry without retyping.
-
-## Documentation
-
+- [Repository audit](docs/PROJECT_AUDIT.md)
 - [Architecture and data flow](docs/ARCHITECTURE.md)
-- [Database schema](supabase/schema.sql)
+- [Architecture decision and migration strategy](docs/ADR/0001-system-architecture.md)
+- [Ten-stage implementation roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+- [Quality gates](docs/QUALITY_GATES.md)
+- [Feature matrix](docs/FEATURE_MATRIX.md)
+
+The [early development plan](docs/DEVELOPMENT_PLAN.md), [Supabase SQL](supabase/schema.sql) and [legacy environment template](.env.example) are retained for historical and migration reference. Use the roadmap for active work.
 
 ## License
 
