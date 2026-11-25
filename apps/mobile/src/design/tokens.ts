@@ -35,6 +35,13 @@ export const type = {
     letterSpacing: -1.2,
     fontWeight: '400',
   },
+  displayCompact: {
+    fontFamily: serif,
+    fontSize: 34,
+    lineHeight: 42,
+    letterSpacing: -0.8,
+    fontWeight: '400',
+  },
   heading: { fontSize: 23, lineHeight: 30, fontWeight: '600' },
   section: { fontSize: 16, lineHeight: 23, fontWeight: '600' },
   body: { fontSize: 16, lineHeight: 24, fontWeight: '400' },

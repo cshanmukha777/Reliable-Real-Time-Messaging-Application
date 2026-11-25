@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Platform, StyleSheet, TextInput, View } from 'react-native';
 import { AppText, IconButton } from '../components/primitives';
 import { useTheme } from '../design/theme';
 import { radius, space, type } from '../design/tokens';
@@ -118,6 +118,7 @@ const styles = StyleSheet.create({
   controls: { flexDirection: 'row', alignItems: 'flex-end', gap: space.xs },
   input: {
     ...type.input,
+    ...Platform.select({ web: { outlineWidth: 0 } }),
     minWidth: 0,
     flex: 1,
     minHeight: space.touch,

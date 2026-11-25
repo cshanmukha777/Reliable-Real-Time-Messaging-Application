@@ -50,13 +50,15 @@ export function AttachmentPreview({
   const content = (
     <>
       {!compact && attachment.image && (
-        <Image
-          source={attachment.image.source}
-          accessibilityLabel={attachment.image.description}
-          accessible
-          style={styles.photo}
-          resizeMode="cover"
-        />
+        <View style={styles.photoFrame}>
+          <Image
+            source={attachment.image.source}
+            accessibilityLabel={attachment.image.description}
+            accessible
+            style={styles.photoFill}
+            resizeMode="cover"
+          />
+        </View>
       )}
       {metadata}
     </>
@@ -121,7 +123,8 @@ const styles = StyleSheet.create({
   },
   fileRow: { flexDirection: 'row', alignItems: 'center' },
   fill: { flex: 1, minWidth: 0 },
-  photo: { width: '100%', aspectRatio: 2.05, backgroundColor: 'transparent' },
+  photoFrame: { width: '100%', aspectRatio: 2.05, overflow: 'hidden' },
+  photoFill: { width: '100%', height: '100%' },
   metadata: {
     minHeight: space.touch,
     flexDirection: 'row',

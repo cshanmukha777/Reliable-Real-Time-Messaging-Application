@@ -1,5 +1,11 @@
 import { useState } from 'react';
-import { StyleSheet, TextInput, View, type TextInputProps } from 'react-native';
+import {
+  Platform,
+  StyleSheet,
+  TextInput,
+  View,
+  type TextInputProps,
+} from 'react-native';
 import { radius, space, type } from '../design/tokens';
 import { useTheme } from '../design/theme';
 import { AppText, IconButton } from './primitives';
@@ -110,6 +116,7 @@ const styles = StyleSheet.create({
   field: { gap: space.xs },
   input: {
     ...type.input,
+    ...Platform.select({ web: { outlineWidth: 0 } }),
     padding: space.sm,
     minHeight: space.touch,
     borderRadius: radius.control,
@@ -125,6 +132,7 @@ const styles = StyleSheet.create({
   },
   searchInput: {
     ...type.input,
+    ...Platform.select({ web: { outlineWidth: 0 } }),
     flex: 1,
     minWidth: 0,
     minHeight: space.touch,

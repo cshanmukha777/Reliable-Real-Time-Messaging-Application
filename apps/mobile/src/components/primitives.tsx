@@ -85,7 +85,10 @@ export function PressTarget({
     <Pressable
       {...props}
       onFocus={(event) => {
-        setFocused(true);
+        setFocused(
+          Platform.OS === 'web' &&
+            document.activeElement?.matches(':focus-visible') === true,
+        );
         onFocus?.(event);
       }}
       onBlur={(event) => {

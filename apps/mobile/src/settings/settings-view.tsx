@@ -93,6 +93,7 @@ export function ThemeSelector({
         <PressTarget
           key={option}
           accessibilityRole="radio"
+          aria-checked={value === option}
           accessibilityLabel={label}
           accessibilityState={{ checked: value === option, disabled }}
           disabled={disabled}
@@ -215,7 +216,7 @@ export function SettingsView({
               autoCorrect={false}
               keyboardType="url"
             />
-            {connectionDetail && (
+            {!!connectionDetail && (
               <AppText
                 variant="caption"
                 tone={connection === 'unavailable' ? 'error' : 'secondary'}
@@ -257,7 +258,7 @@ export function SettingsView({
               detail="Preferences and diagnostic probe"
               icon="FileText"
             />
-            {storageNote && (
+            {!!storageNote && (
               <AppText
                 variant="caption"
                 tone="secondary"

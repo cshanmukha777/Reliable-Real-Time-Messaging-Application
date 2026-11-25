@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { FlatList, StyleSheet, View } from 'react-native';
+import { FlatList, StyleSheet, View, useWindowDimensions } from 'react-native';
 import { Icon } from '../components/icons';
 import {
   AppScreen,
@@ -133,6 +133,7 @@ export function InboxScreen({
   inset?: boolean;
 }) {
   const { colors } = useTheme();
+  const { width, fontScale } = useWindowDimensions();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
   const term = query.trim().toLocaleLowerCase();
@@ -180,7 +181,7 @@ export function InboxScreen({
         <View style={styles.titleLine}>
           <AppText
             accessibilityRole="header"
-            variant="display"
+            variant={width / fontScale < 360 ? 'displayCompact' : 'display'}
             style={styles.name}
           >
             Conversations
