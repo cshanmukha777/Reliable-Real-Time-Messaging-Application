@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Alert, Button, ScrollView, Text, TextInput } from 'react-native';
+import { Alert } from 'react-native';
+import { router } from 'expo-router';
 import type { Appearance } from '@chatapp/contracts';
 import { ApiClient } from '../src/api-client';
 import { mobileEnvironment } from '../src/configuration';
-import { styles, useFoundation, usePalette } from '../src/foundation';
+import { useFoundation } from '../src/foundation';
+import { SettingsView } from '../src/settings/settings-view';
 import {
   resetBackend,
   restorePersistenceProbe,
@@ -24,7 +26,6 @@ export default function Settings() {
     ignoredStoredBackend,
     updateConfiguration,
   } = useFoundation();
-  const palette = usePalette(configuration.appearance);
   const [candidate, setCandidate] = useState(configuration.apiBaseUrl);
   const [connection, setConnection] = useState<Connection>({
     status: 'idle',
@@ -146,111 +147,39 @@ export default function Settings() {
     }
   }
 
-  const text = { color: palette.foreground };
-  const label = [styles.label, text];
-  const appearanceOptions: Appearance[] = ['system', 'light', 'dark'];
+  const indicator = {
+    idle: 'untested',
+    connecting: 'checking',
+    connected: 'online',
+    failed: 'unavailable',
+  } as const;
 
   return (
-    <ScrollView
-      keyboardShouldPersistTaps="handled"
-      contentContainerStyle={styles.content}
-    >
-      <Text accessibilityRole="header" style={label}>
-        Backend
-      </Text>
-      <Text selectable style={[styles.text, text]}>
-        Active server: {configuration.apiBaseUrl}
-      </Text>
-      {ignoredStoredBackend && (
-        <Text style={text}>
-          The saved server is incompatible with this build. The default is
-          active.
-        </Text>
-      )}
-      <Text style={label}>Server URL</Text>
-      <TextInput
-        accessibilityLabel="Server URL"
-        autoCapitalize="none"
-        autoCorrect={false}
-        keyboardType="url"
-        editable={!busy}
-        value={candidate}
-        onChangeText={(value) => {
-          setCandidate(value);
-          setVerifiedOrigin(null);
-          setConnection({ status: 'idle', detail: '' });
-        }}
-        style={[styles.input, text, { borderColor: palette.border }]}
-        placeholder="https://api.example.com"
-        placeholderTextColor={palette.muted}
-      />
-      <Button
-        title={
-          connection.status === 'connecting' ? 'Connecting…' : 'Test connection'
-        }
-        disabled={busy}
-        onPress={testConnection}
-        color={palette.accent}
-      />
-      <Button
-        title="Save tested server"
-        disabled={busy || !verifiedOrigin}
-        onPress={() => {
-          if (verifiedOrigin) void applyBackend(verifiedOrigin);
-        }}
-        color={palette.accent}
-      />
-      <Button
-        title="Reset to default"
-        disabled={busy}
-        onPress={confirmReset}
-        color={palette.accent}
-      />
-      {connection.detail !== '' && (
-        <Text
-          accessibilityRole={connection.status === 'failed' ? 'alert' : 'text'}
-          accessibilityLiveRegion="polite"
-          style={text}
-        >
-          {connection.detail}
-        </Text>
-      )}
-
-      <Text accessibilityRole="header" style={label}>
-        Appearance
-      </Text>
-      <Text style={text}>Current preference: {configuration.appearance}</Text>
-      {appearanceOptions.map((item) => (
-        <Button
-          key={item}
-          title={`Use ${item} appearance`}
-          disabled={busy || item === configuration.appearance}
-          onPress={() => {
-            void changeAppearance(item);
-          }}
-          color={palette.accent}
-        />
-      ))}
-
-      <Text accessibilityRole="header" style={label}>
-        Local storage
-      </Text>
-      <Button
-        title="Run SQLite check"
-        disabled={busy || !probeReady}
-        onPress={checkStorage}
-        color={palette.accent}
-      />
-      {storageStatus !== '' && (
-        <Text accessibilityLiveRegion="polite" style={text}>
-          {storageStatus}
-        </Text>
-      )}
-      {probeId && (
-        <Text selectable style={text}>
-          Probe ID: {probeId}
-        </Text>
-      )}
-    </ScrollView>
+    <SettingsView
+      appearance={configuration.appearance}
+      onAppearance={changeAppearance}
+      activeOrigin={configuration.apiBaseUrl}
+      candidate={candidate}
+      onCandidate={(value) => {
+        setCandidate(value);
+        setVerifiedOrigin(null);
+        setConnection({ status: 'idle', detail: '' });
+      }}
+      connection={indicator[connection.status]}
+      connectionDetail={connection.detail}
+      busy={busy}
+      verified={verifiedOrigin !== null}
+      notice={ignoredStoredBackend}
+      onTest={testConnection}
+      onSave={() => {
+        if (verifiedOrigin) void applyBackend(verifiedOrigin);
+      }}
+      onReset={confirmReset}
+      {...(probeId && { probeId })}
+      storageNote={storageStatus}
+      probeReady={probeReady}
+      onProbe={checkStorage}
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+    />
   );
 }
