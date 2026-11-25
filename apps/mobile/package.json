@@ -1,0 +1,36 @@
+{
+  "name": "@chatapp/mobile",
+  "version": "0.2.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "doctor": "expo-doctor",
+    "dependencies:check": "expo install --check",
+    "router:check": "expo config --type public --json | node ../../scripts/check-router.mjs",
+    "export:android": "expo export --platform android --output-dir dist/android",
+    "export:ios": "expo export --platform ios --output-dir dist/ios"
+  },
+  "dependencies": {
+    "@chatapp/contracts": "0.2.0",
+    "expo": "58.0.26",
+    "expo-build-properties": "58.0.12",
+    "expo-constants": "58.0.16",
+    "expo-crypto": "58.0.8",
+    "expo-dev-client": "58.0.21",
+    "expo-linking": "58.0.17",
+    "expo-router": "58.0.32",
+    "expo-sqlite": "58.0.18",
+    "react": "19.3.0",
+    "react-native": "0.88.1",
+    "react-native-safe-area-context": "5.11.1",
+    "react-native-screens": "4.30.1",
+    "react-native-url-polyfill": "2.0.0",
+    "expo-system-ui": "58.0.7"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "expo-doctor": "1.21.8"
+  }
+}
