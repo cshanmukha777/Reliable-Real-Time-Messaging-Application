@@ -1,0 +1,256 @@
+import { useEffect, useState } from 'react';
+import { Alert, Button, ScrollView, Text, TextInput } from 'react-native';
+import type { Appearance } from '@chatapp/contracts';
+import { ApiClient } from '../src/api-client';
+import { mobileEnvironment } from '../src/configuration';
+import { styles, useFoundation, usePalette } from '../src/foundation';
+import {
+  resetBackend,
+  restorePersistenceProbe,
+  runPersistenceProbe,
+  saveAppearance,
+  saveBackend,
+} from '../src/preferences';
+
+type Connection = {
+  status: 'idle' | 'connecting' | 'connected' | 'failed';
+  detail: string;
+};
+
+export default function Settings() {
+  const {
+    configuration,
+    defaultUrl,
+    ignoredStoredBackend,
+    updateConfiguration,
+  } = useFoundation();
+  const palette = usePalette(configuration.appearance);
+  const [candidate, setCandidate] = useState(configuration.apiBaseUrl);
+  const [connection, setConnection] = useState<Connection>({
+    status: 'idle',
+    detail: '',
+  });
+  const [verifiedOrigin, setVerifiedOrigin] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [probeId, setProbeId] = useState<string | null>(null);
+  const [storageStatus, setStorageStatus] = useState('');
+  const [probeReady, setProbeReady] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    restorePersistenceProbe().then(
+      (id) => {
+        if (!active) return;
+        setProbeId(id);
+        setProbeReady(true);
+        if (id) setStorageStatus('Found the previously saved probe.');
+      },
+      () => {
+        if (active)
+          setStorageStatus('Could not read the previously saved probe.');
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function testConnection() {
+    const parsed = mobileEnvironment().origin.safeParse(candidate);
+    setVerifiedOrigin(null);
+    if (!parsed.success) {
+      setConnection({
+        status: 'failed',
+        detail: parsed.error.issues[0]?.message ?? 'Invalid server URL.',
+      });
+      return;
+    }
+    setBusy(true);
+    setConnection({ status: 'connecting', detail: 'Checking the server…' });
+    try {
+      const health = await new ApiClient(parsed.data).health();
+      setVerifiedOrigin(parsed.data);
+      setConnection({
+        status: 'connected',
+        detail: `Connected to ChatApp API ${health.apiVersion}.`,
+      });
+    } catch (error) {
+      const detail =
+        error instanceof Error && error.name !== 'AbortError'
+          ? error.message
+          : 'Connection timed out.';
+      setConnection({ status: 'failed', detail });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function applyBackend(origin: string, reset = false) {
+    setBusy(true);
+    try {
+      if (reset) await resetBackend();
+      else await saveBackend(origin);
+      updateConfiguration({ apiBaseUrl: origin });
+      setCandidate(origin);
+      setVerifiedOrigin(null);
+      setConnection({
+        status: 'idle',
+        detail: reset ? 'Restored the default server.' : 'Server saved.',
+      });
+    } catch {
+      setConnection({
+        status: 'failed',
+        detail: 'The server preference could not be saved.',
+      });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function confirmReset() {
+    Alert.alert('Restore default server?', defaultUrl, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Restore',
+        onPress: () => {
+          void applyBackend(defaultUrl, true);
+        },
+      },
+    ]);
+  }
+
+  async function changeAppearance(appearance: Appearance) {
+    setBusy(true);
+    try {
+      await saveAppearance(appearance);
+      updateConfiguration({ appearance });
+    } catch {
+      setStorageStatus('The appearance preference could not be saved.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function checkStorage() {
+    setBusy(true);
+    try {
+      const id = await runPersistenceProbe(probeId);
+      setProbeId(id);
+      setStorageStatus(
+        'Verified the record after closing and reopening SQLite.',
+      );
+    } catch {
+      setStorageStatus('The SQLite persistence check failed.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const text = { color: palette.foreground };
+  const label = [styles.label, text];
+  const appearanceOptions: Appearance[] = ['system', 'light', 'dark'];
+
+  return (
+    <ScrollView
+      keyboardShouldPersistTaps="handled"
+      contentContainerStyle={styles.content}
+    >
+      <Text accessibilityRole="header" style={label}>
+        Backend
+      </Text>
+      <Text selectable style={[styles.text, text]}>
+        Active server: {configuration.apiBaseUrl}
+      </Text>
+      {ignoredStoredBackend && (
+        <Text style={text}>
+          The saved server is incompatible with this build. The default is
+          active.
+        </Text>
+      )}
+      <Text style={label}>Server URL</Text>
+      <TextInput
+        accessibilityLabel="Server URL"
+        autoCapitalize="none"
+        autoCorrect={false}
+        keyboardType="url"
+        editable={!busy}
+        value={candidate}
+        onChangeText={(value) => {
+          setCandidate(value);
+          setVerifiedOrigin(null);
+          setConnection({ status: 'idle', detail: '' });
+        }}
+        style={[styles.input, text, { borderColor: palette.border }]}
+        placeholder="https://api.example.com"
+        placeholderTextColor={palette.muted}
+      />
+      <Button
+        title={
+          connection.status === 'connecting' ? 'Connecting…' : 'Test connection'
+        }
+        disabled={busy}
+        onPress={testConnection}
+        color={palette.accent}
+      />
+      <Button
+        title="Save tested server"
+        disabled={busy || !verifiedOrigin}
+        onPress={() => {
+          if (verifiedOrigin) void applyBackend(verifiedOrigin);
+        }}
+        color={palette.accent}
+      />
+      <Button
+        title="Reset to default"
+        disabled={busy}
+        onPress={confirmReset}
+        color={palette.accent}
+      />
+      {connection.detail !== '' && (
+        <Text
+          accessibilityRole={connection.status === 'failed' ? 'alert' : 'text'}
+          accessibilityLiveRegion="polite"
+          style={text}
+        >
+          {connection.detail}
+        </Text>
+      )}
+
+      <Text accessibilityRole="header" style={label}>
+        Appearance
+      </Text>
+      <Text style={text}>Current preference: {configuration.appearance}</Text>
+      {appearanceOptions.map((item) => (
+        <Button
+          key={item}
+          title={`Use ${item} appearance`}
+          disabled={busy || item === configuration.appearance}
+          onPress={() => {
+            void changeAppearance(item);
+          }}
+          color={palette.accent}
+        />
+      ))}
+
+      <Text accessibilityRole="header" style={label}>
+        Local storage
+      </Text>
+      <Button
+        title="Run SQLite check"
+        disabled={busy || !probeReady}
+        onPress={checkStorage}
+        color={palette.accent}
+      />
+      {storageStatus !== '' && (
+        <Text accessibilityLiveRegion="polite" style={text}>
+          {storageStatus}
+        </Text>
+      )}
+      {probeId && (
+        <Text selectable style={text}>
+          Probe ID: {probeId}
+        </Text>
+      )}
+    </ScrollView>
+  );
+}

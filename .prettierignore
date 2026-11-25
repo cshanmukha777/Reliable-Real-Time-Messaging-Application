@@ -1,0 +1,14 @@
+package-lock.json
+/dist/
+**/dist/
+**/.expo/
+**/android/
+**/ios/
+**/expo-env.d.ts
+docs/ADR/
+docs/ARCHITECTURE.md
+docs/DEVELOPMENT_PLAN.md
+docs/FEATURE_MATRIX.md
+docs/IMPLEMENTATION_ROADMAP.md
+docs/PROJECT_AUDIT.md
+docs/QUALITY_GATES.md

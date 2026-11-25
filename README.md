@@ -1,32 +1,35 @@
-# Reliable Real-Time Messaging Application
+# ChatApp
 
-ChatApp is a university capstone for reliable messaging on iOS and Android. It is designed to keep message state understandable when a network is slow, intermittent or unavailable.
+ChatApp is a university capstone for reliable messaging on iOS and Android. The Stage 2 workspace contains an Expo Router shell with persistent settings, a NestJS health API, shared TypeScript contracts, and a local MongoDB replica set.
 
-The repository currently contains the Stage 1 audit, architecture, implementation plan and legacy schema. Application setup and executable build commands arrive with the Stage 2 foundation.
+## Quick start
 
-## Target stack
+Use Node **24.22.3**, npm **11.19.1**, and Docker with Compose v2. Follow the [device setup](docs/LOCAL_DEVELOPMENT.md#mobile-development) to choose an API address your simulator or phone can reach.
 
-| Layer | Technology |
-| --- | --- |
-| Mobile | React Native, Expo, TypeScript and Expo Router |
-| Backend | NestJS REST API and Socket.IO over WebSockets |
-| Server persistence | MongoDB replica set via Prisma, plus private object storage for attachments |
-| Local persistence | Expo SQLite for the cache and durable outgoing queue |
-| Desktop milestone | Electron client and macOS DMG |
+```bash
+nvm use
+npm install --global npm@11.19.1
+npm ci
+cp .env.example .env
+cp apps/mobile/.env.example apps/mobile/.env.local
+docker compose -f infrastructure/mongodb/compose.yml up -d mongo
+docker compose -f infrastructure/mongodb/compose.yml run --rm mongo-init
+npm run prisma:generate
+npm run db:push
+npm run dev:api
+```
 
-The system uses stable client message IDs, a durable local queue, idempotent server writes and reconnect replay. The sender sees delivery and read states only after recipient acknowledgements.
+In another terminal, after setting the mobile API address, run `npm run dev:mobile`. The API responds at `/v1/health`, `/v1/health/live`, and `/v1/health/ready`.
 
-## Project documentation
+## Documentation
 
-- [Repository audit](docs/PROJECT_AUDIT.md)
-- [Architecture and data flow](docs/ARCHITECTURE.md)
-- [Architecture decision and migration strategy](docs/ADR/0001-system-architecture.md)
-- [Ten-stage implementation roadmap](docs/IMPLEMENTATION_ROADMAP.md)
-- [Quality gates](docs/QUALITY_GATES.md)
-- [Feature matrix](docs/FEATURE_MATRIX.md)
+- [Local development, device setup and testing](docs/LOCAL_DEVELOPMENT.md)
+- [Environment configuration](docs/ENVIRONMENT.md)
+- [MongoDB replica-set setup](docs/DATABASE_SETUP.md)
+- [Stage 2 implementation and verification](docs/STAGE_2_IMPLEMENTATION.md)
+- [Architecture](docs/ARCHITECTURE.md), [ADR](docs/ADR/0001-system-architecture.md), and [implementation roadmap](docs/IMPLEMENTATION_ROADMAP.md)
+- [Baseline audit](docs/PROJECT_AUDIT.md), [feature matrix](docs/FEATURE_MATRIX.md), and [quality gates](docs/QUALITY_GATES.md)
 
-The [early development plan](docs/DEVELOPMENT_PLAN.md), [Supabase SQL](supabase/schema.sql) and [legacy environment template](.env.example) are retained for historical and migration reference. Use the roadmap for active work.
-
-## License
+The [legacy Supabase SQL](supabase/schema.sql) remains available for migration review.
 
 MIT. See [LICENSE](LICENSE).

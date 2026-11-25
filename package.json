@@ -1,0 +1,41 @@
+{
+  "name": "chatapp",
+  "version": "0.2.0",
+  "private": true,
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": "24.22.3",
+    "npm": "11.19.1"
+  },
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build:contracts": "npm run build -w @chatapp/contracts",
+    "build:api": "npm run build:contracts && npm run build -w @chatapp/api",
+    "prisma:generate": "npm run prisma:generate -w @chatapp/api",
+    "db:push": "npm run db:push -w @chatapp/api",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "npm run build:contracts && npm run typecheck --workspaces",
+    "test": "npm run build:contracts && node --test packages/contracts/test/*.test.cjs apps/api/test/unit/*.test.cjs apps/mobile/test/*.test.cjs",
+    "test:api": "npm run build:api && node --test apps/api/test/http.test.cjs",
+    "test:db": "npm run build:api && node --test apps/api/test/database.integration.cjs",
+    "dev:api": "npm run build:contracts && npm run dev -w @chatapp/api",
+    "dev:mobile": "npm run build:contracts && npm run start -w @chatapp/mobile",
+    "check:security": "node scripts/check-security.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "eslint": "9.39.2",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.54.0"
+  },
+  "overrides": {
+    "react": "19.3.0",
+    "react-native": "0.88.1"
+  }
+}
