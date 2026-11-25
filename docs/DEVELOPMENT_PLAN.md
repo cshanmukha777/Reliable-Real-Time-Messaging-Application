@@ -1,5 +1,7 @@
 # Five-Day Development Plan
 
+> Historical Supabase plan. The [implementation roadmap](IMPLEMENTATION_ROADMAP.md) and [quality gates](QUALITY_GATES.md) define the current stages and demo expectations.
+
 ## Day 1 — Foundation
 - Scaffold Expo Router + TypeScript
 - Configure Supabase client and environment variables
