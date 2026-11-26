@@ -15,3 +15,56 @@ model FoundationProbe {
 
   @@map("foundation_probes")
 }
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+model User {
+  id           String        @id @default(auto()) @map("_id") @db.ObjectId
+  email        String        @unique
+  passwordHash String
+  status       AccountStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  lastLoginAt  DateTime?
+  profile      Profile?
+  sessions     Session[]
+}
+
+model Profile {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @unique @db.ObjectId
+  user        User     @relation(fields: [userId], references: [id])
+  displayName String
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Session {
+  id           String         @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String         @db.ObjectId
+  user         User           @relation(fields: [userId], references: [id])
+  refreshHash  String         @unique
+  expiresAt    DateTime
+  revokedAt    DateTime?
+  createdAt    DateTime       @default(now())
+  lastActiveAt DateTime       @default(now())
+  usedTokens   SpentRefresh[]
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model SpentRefresh {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  hash        String   @unique
+  sessionId   String   @db.ObjectId
+  session     Session  @relation(fields: [sessionId], references: [id])
+  operationHash String
+  rotatedAt   DateTime @default(now())
+
+  @@index([sessionId])
+}

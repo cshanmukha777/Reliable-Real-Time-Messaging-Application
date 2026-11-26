@@ -22,7 +22,7 @@
     "typecheck": "npm run build:contracts && npm run typecheck --workspaces",
     "test": "npm run build:contracts && node --test packages/contracts/test/*.test.cjs apps/api/test/unit/*.test.cjs apps/mobile/test/*.test.cjs",
     "test:api": "npm run build:api && node --test apps/api/test/http.test.cjs",
-    "test:db": "npm run build:api && node --test apps/api/test/database.integration.cjs",
+    "test:db": "npm run build:api && node --test apps/api/test/*.integration.cjs",
     "dev:api": "npm run build:contracts && npm run dev -w @chatapp/api",
     "dev:mobile": "npm run build:contracts && npm run start -w @chatapp/mobile",
     "check:security": "node scripts/check-security.mjs"
@@ -38,6 +38,9 @@
   "overrides": {
     "react": "19.3.0",
     "react-native": "0.88.1",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "@prisma/config": {
+      "effect": "3.22.1"
+    }
   }
 }

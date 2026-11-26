@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
+const { randomBytes } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const { join } = require('node:path');
 const { createApplication } = require('../dist/application.js');
@@ -12,6 +13,7 @@ const {
 test('versioned HTTP endpoints and safe errors while database is unavailable', async (t) => {
   const environment = loadEnvironment({
     NODE_ENV: 'test',
+    AUTH_SIGNING_KEY: randomBytes(32).toString('hex'),
     DATABASE_URL:
       'mongodb://127.0.0.1:1/chatapp_http_test?directConnection=true',
     CORS_ORIGINS: 'https://web.example.com',
@@ -68,4 +70,37 @@ test('invalid startup exits without printing a database secret', () => {
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Invalid API configuration: DATABASE_URL/);
   assert.doesNotMatch(result.stderr, /invalid-sensitive-value/);
+});
+
+test('authentication preflight respects the configured origin and omits cookies', async (t) => {
+  const app = await createApplication(
+    loadEnvironment({
+      NODE_ENV: 'test',
+      DATABASE_URL:
+        'mongodb://127.0.0.1:1/chatapp_http_test?directConnection=true',
+      AUTH_SIGNING_KEY: randomBytes(32).toString('hex'),
+      CORS_ORIGINS: 'https://client.example.test',
+    }),
+  );
+  t.after(() => app.close());
+  await app.listen(0, '127.0.0.1');
+  const url = (await app.getUrl()) + '/v1/users/me';
+  const options = (origin) => ({
+    method: 'OPTIONS',
+    headers: {
+      Origin: origin,
+      'Access-Control-Request-Method': 'PATCH',
+      'Access-Control-Request-Headers': 'authorization,content-type',
+    },
+  });
+  const accepted = await fetch(url, options('https://client.example.test'));
+  assert.equal(accepted.status, 204);
+  assert.equal(
+    accepted.headers.get('access-control-allow-origin'),
+    'https://client.example.test',
+  );
+  assert.match(accepted.headers.get('access-control-allow-methods'), /PATCH/);
+  assert.equal(accepted.headers.get('access-control-allow-credentials'), null);
+  const rejected = await fetch(url, options('https://different.example.test'));
+  assert.equal(rejected.headers.get('access-control-allow-origin'), null);
 });

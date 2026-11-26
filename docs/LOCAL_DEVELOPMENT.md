@@ -7,12 +7,14 @@ Use Node.js 24.22.3 LTS, npm 11.19.1, Docker Engine or Docker Desktop with Compo
 ```bash
 git clone https://github.com/cshanmukha777/Reliable-Real-Time-Messaging-Application.git
 cd Reliable-Real-Time-Messaging-Application
-git switch feat/stage-2-technical-foundation
+# When testing the Stage 4 pull request:
+git switch feat/stage-4-authentication
 nvm install
 nvm use
 npm install --global npm@11.19.1
 npm ci
 cp .env.example .env
+printf "\nAUTH_SIGNING_KEY=%s\n" "$(openssl rand -hex 32)" >> .env
 cp apps/mobile/.env.example apps/mobile/.env.local
 npm run prisma:generate
 ```

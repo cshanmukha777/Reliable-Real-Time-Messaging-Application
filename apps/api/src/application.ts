@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import type { NextFunction, Request, Response } from 'express';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -18,6 +19,13 @@ export async function createApplication(environment: ApiEnvironment) {
   );
   app.disable('x-powered-by');
   app.use(requestLogging);
+  app.use(
+    ['/v1/auth', '/v1/users'],
+    (_request: Request, response: Response, next: NextFunction) => {
+      response.setHeader('Cache-Control', 'no-store');
+      next();
+    },
+  );
   app.enableVersioning({ type: VersioningType.URI });
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
@@ -30,7 +38,7 @@ export async function createApplication(environment: ApiEnvironment) {
   if (environment.CORS_ORIGINS.length > 0) {
     app.enableCors({
       origin: environment.CORS_ORIGINS,
-      methods: ['GET', 'HEAD', 'OPTIONS'],
+      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'OPTIONS'],
     });
   }
   return app;

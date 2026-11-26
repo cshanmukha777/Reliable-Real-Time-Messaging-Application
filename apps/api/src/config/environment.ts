@@ -16,6 +16,11 @@ const databaseUrl = z
 
 const envSchema = z.object({
   DATABASE_URL: databaseUrl,
+  AUTH_SIGNING_KEY: z
+    .string()
+    .regex(/^[a-f0-9]{64}$/i)
+    .refine((value) => new Set(value.toLowerCase()).size >= 8),
+  AUTH_ISSUER: z.string().trim().min(1).max(200).default('chatapp-api'),
   HOST: z.enum(['127.0.0.1', '0.0.0.0', '::1', '::']).default('127.0.0.1'),
   PORT: z
     .string()

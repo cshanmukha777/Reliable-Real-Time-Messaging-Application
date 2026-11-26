@@ -2,10 +2,12 @@
 import { useEffect, useState } from 'react';
 import { Stack, type ErrorBoundaryProps } from 'expo-router';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AppScreen, AppText } from '../src/components/primitives';
+import { AppButton, AppScreen, AppText } from '../src/components/primitives';
 import { ErrorState, LoadingState } from '../src/components/feedback';
 import { ThemeProvider, useReducedMotion, useTheme } from '../src/design/theme';
 import { FoundationProvider, type Foundation } from '../src/foundation';
+import { SessionProvider, useSession } from '../src/auth/session-provider';
+import { sessionRoutes } from '../src/auth/session-manager';
 import { openPreferences } from '../src/preferences';
 
 export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
@@ -27,6 +29,35 @@ export function ErrorBoundary({ retry }: ErrorBoundaryProps) {
 function NativeRoutes() {
   const { colors, isDark } = useTheme();
   const reduced = useReducedMotion();
+  const { manager, state } = useSession();
+  if (state.phase === 'initializing' || state.phase === 'refreshing') {
+    return (
+      <AppScreen>
+        <LoadingState label="Checking your session…" />
+      </AppScreen>
+    );
+  }
+  if (state.phase === 'unavailable') {
+    return (
+      <AppScreen>
+        <ErrorState
+          title="Session unavailable"
+          detail={state.detail}
+          onRetry={() => {
+            void manager.restore().catch(() => undefined);
+          }}
+        />
+        <AppButton
+          kind="quiet"
+          label="Sign out of this device"
+          onPress={() => {
+            void manager.signOut().catch(() => undefined);
+          }}
+        />
+      </AppScreen>
+    );
+  }
+  const { signedIn, showAuth } = sessionRoutes(state.phase);
   return (
     <Stack
       screenOptions={{
@@ -35,7 +66,18 @@ function NativeRoutes() {
         statusBarStyle: isDark ? 'light' : 'dark',
         animation: reduced ? 'none' : 'fade',
       }}
-    />
+    >
+      <Stack.Protected guard={signedIn}>
+        <Stack.Screen name="(app)" />
+      </Stack.Protected>
+      <Stack.Protected guard={showAuth}>
+        <Stack.Screen name="(auth)" />
+      </Stack.Protected>
+      <Stack.Screen name="settings" />
+      <Stack.Protected guard={__DEV__}>
+        <Stack.Screen name="design-preview" />
+      </Stack.Protected>
+    </Stack>
   );
 }
 
@@ -86,7 +128,9 @@ function NativeFoundation() {
       }}
     >
       <ThemeProvider appearance={state.configuration.appearance}>
-        <NativeRoutes />
+        <SessionProvider origin={state.configuration.apiBaseUrl}>
+          <NativeRoutes />
+        </SessionProvider>
       </ThemeProvider>
     </FoundationProvider>
   );

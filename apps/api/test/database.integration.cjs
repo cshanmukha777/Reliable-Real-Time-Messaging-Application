@@ -1,5 +1,6 @@
 const assert = require('node:assert/strict');
 const { randomBytes } = require('node:crypto');
+const AUTH_SIGNING_KEY = randomBytes(32).toString('hex');
 const { spawnSync } = require('node:child_process');
 const { once } = require('node:events');
 const { createConnection, createServer } = require('node:net');
@@ -82,6 +83,7 @@ test(
     url.pathname = `/chatapp_test_${randomBytes(8).toString('hex')}`;
     const environment = loadEnvironment({
       DATABASE_URL: url.href,
+      AUTH_SIGNING_KEY,
       NODE_ENV: 'test',
     });
     const prisma = new PrismaClient({
@@ -209,7 +211,11 @@ test(
         const proxiedUrl = new URL(url);
         proxiedUrl.port = String(network.port);
         const app = await createApplication(
-          loadEnvironment({ DATABASE_URL: proxiedUrl.href, NODE_ENV: 'test' }),
+          loadEnvironment({
+            DATABASE_URL: proxiedUrl.href,
+            AUTH_SIGNING_KEY,
+            NODE_ENV: 'test',
+          }),
         );
         outage.after(() => app.close());
         await app.listen(0, '127.0.0.1');

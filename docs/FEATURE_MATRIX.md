@@ -2,6 +2,15 @@
 
 Assessment at Stage 1 baseline `8244028`. **Existing and verified** requires an observed working product path. **Partially implemented** means a relevant schema or component exists, with the product path incomplete. **Missing** means there is no implementation beyond possible planning. **Requires testing** is reserved for an apparently complete path with missing evidence. No baseline feature meets either the first or fourth definition.
 
+## Stage 4 update
+
+| Capability | Status | Evidence |
+| --- | --- | --- |
+| Registration, login, restoration, refresh and sign-out | API verified. Native device validation pending. | Two real HTTP clients and MongoDB. Mobile session manager uses independent test keychains. |
+| Owner-only profile and display-name editing | API verified. Native device validation pending. | Own reads/writes, cross-account denial and session revocation tested. |
+| Configurable backend and account isolation | Automated client checks verified. Device smoke pending. | Origin mismatch clears stored credentials without a request. Account SQLite names are scoped by origin and user ID. |
+| Appearance persistence | Existing adapter retained. | Stage 2 SQLite restart test continues to pass. |
+
 | # | Requirement | Baseline status | Evidence and completion test | Stage |
 | --- | --- | --- | --- | --- |
 | 1 | Registration and login | Missing | The SQL references Supabase `auth.users`. App auth is absent. Register, sign in, restore, refresh and sign out with invalid-session coverage. | 4 |
