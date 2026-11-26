@@ -13,6 +13,7 @@ nvm use
 npm install --global npm@11.19.1
 npm ci
 cp .env.example .env
+printf "\nAUTH_SIGNING_KEY=%s\n" "$(openssl rand -hex 32)" >> .env
 cp apps/mobile/.env.example apps/mobile/.env.local
 npm run prisma:generate
 ```
