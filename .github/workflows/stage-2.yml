@@ -69,6 +69,7 @@ jobs:
         env:
           DATABASE_URL: mongodb://CHATAPP_SERVER_ONLY_CANARY.invalid/chatapp_test
           CHATAPP_SERVER_ONLY_CANARY: CHATAPP_SERVER_ONLY_CANARY
+          AUTH_SIGNING_KEY: CHATAPP_AUTH_KEY_CANARY
         run: |
           npm run export:android -w @chatapp/mobile
           npm run export:ios -w @chatapp/mobile
