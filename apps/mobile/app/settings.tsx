@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import type { Appearance } from '@chatapp/contracts';
 import { ApiClient } from '../src/api-client';
 import { mobileEnvironment } from '../src/configuration';
+import { useSession } from '../src/auth/session-provider';
 import { useFoundation } from '../src/foundation';
 import { SettingsView } from '../src/settings/settings-view';
 import {
@@ -20,6 +21,7 @@ type Connection = {
 };
 
 export default function Settings() {
+  const { manager, state } = useSession();
   const {
     configuration,
     defaultUrl,
@@ -89,6 +91,7 @@ export default function Settings() {
   async function applyBackend(origin: string, reset = false) {
     setBusy(true);
     try {
+      if (origin !== configuration.apiBaseUrl) await manager.signOut();
       if (reset) await resetBackend();
       else await saveBackend(origin);
       updateConfiguration({ apiBaseUrl: origin });
@@ -179,7 +182,11 @@ export default function Settings() {
       storageNote={storageStatus}
       probeReady={probeReady}
       onProbe={checkStorage}
-      onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}
+      onBack={() =>
+        router.canGoBack()
+          ? router.back()
+          : router.replace(state.phase === 'authenticated' ? '/' : '/sign-in')
+      }
     />
   );
 }

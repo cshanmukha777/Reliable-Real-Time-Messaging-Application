@@ -12,7 +12,14 @@ assert.equal(manifest.main, 'expo-router/entry');
 assert.ok(config.plugins.includes('expo-router'));
 assert.ok(config.experiments.typedRoutes);
 assert.deepEqual(config.platforms.toSorted(), ['android', 'ios', 'web']);
-for (const route of ['_layout', 'index', 'settings']) {
+for (const route of [
+  '_layout',
+  '(app)/index',
+  '(app)/profile',
+  '(auth)/sign-in',
+  '(auth)/register',
+  'settings',
+]) {
   await access(new URL(`app/${route}.tsx`, mobile));
 }
 console.log('Expo Router configuration and entry routes are present.');
