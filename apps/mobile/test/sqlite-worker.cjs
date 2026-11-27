@@ -27,8 +27,9 @@ function openDatabase(path) {
     async transaction(work) {
       db.exec('BEGIN IMMEDIATE');
       try {
-        await work(executor);
+        const result = await work(executor);
         db.exec('COMMIT');
+        return result;
       } catch (error) {
         db.exec('ROLLBACK');
         throw error;

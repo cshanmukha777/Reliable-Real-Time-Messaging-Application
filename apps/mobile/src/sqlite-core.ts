@@ -10,7 +10,7 @@ export interface SqlExecutor {
 }
 
 export interface LocalDatabase extends SqlExecutor {
-  transaction(work: (tx: SqlExecutor) => Promise<void>): Promise<void>;
+  transaction<T>(work: (tx: SqlExecutor) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 

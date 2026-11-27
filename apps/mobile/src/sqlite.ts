@@ -33,8 +33,9 @@ export async function openLocalDatabase(name: string, account = false): Promise<
     transaction: (work) => serialize(async () => {
       await raw.exec('BEGIN IMMEDIATE');
       try {
-        await work(raw);
+        const result = await work(raw);
         await raw.exec('COMMIT');
+        return result;
       } catch (error) {
         await raw.exec('ROLLBACK').catch(() => undefined);
         throw error;
