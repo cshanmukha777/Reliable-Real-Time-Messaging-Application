@@ -19,7 +19,7 @@ EXPO_PUBLIC_API_BASE_URL=https://api.example.com npm run export:ios -w @chatapp/
 npm run check:security
 ```
 
-Local verification passed 47 standard tests, 3 HTTP API tests and 14 real-service integrations. Lint, formatting and type checking passed. Android and iOS Hermes exports and bundle configuration checks passed. See the Stage 6 pull request for the hosted workflow result.
+Local verification passed 48 standard tests, 3 HTTP API tests and 14 real-service integrations. Lint, formatting and type checking passed. Android and iOS Hermes exports and bundle configuration checks passed. See the Stage 6 pull request for the hosted workflow result.
 
 Provide the replica set and private object service described in the [test plan](TEST_PLAN.md) before running `test:db`. CI runs it with MongoDB 7.0.40 and VersityGW 1.11.0. The live recovery test opens real SQLite, uploads to the object store, drops the responses after the object and message are committed, reopens SQLite between attempts, and proves that one object transfer and one canonical MongoDB message remain. It also checks that peers never receive the sender’s client operation UUID and that an opt-in history tombstone contains no original payload.
 

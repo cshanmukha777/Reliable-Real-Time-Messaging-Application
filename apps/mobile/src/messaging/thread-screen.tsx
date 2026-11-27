@@ -108,6 +108,7 @@ export function ConnectedThread({ id }: { id: string }) {
   const load = useCallback(
     async (after?: string) => {
       const run = ++epoch.current;
+      const revision = store.membershipRevision();
       setLoading(true);
       setLoadError('');
       try {
@@ -116,7 +117,7 @@ export function ConnectedThread({ id }: { id: string }) {
           api.reconcile(id, after),
         ]);
         if (epoch.current !== run) return;
-        await store.applyHistory(id, page, Date.now(), detail);
+        await store.applyHistory(id, page, Date.now(), detail, revision);
         await store.connectionRecovered(Date.now());
         worker.wake();
         await clean().catch(() => undefined);

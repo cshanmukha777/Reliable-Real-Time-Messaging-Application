@@ -454,3 +454,28 @@ test('two running processes contend for one durable claim', async (t) => {
   assert.equal(claims.filter((claim) => claim === id).length, 1);
   assert.equal(claims.filter((claim) => claim === null).length, 1);
 });
+
+test('a late history or inbox response cannot restore content after a known revocation', async () => {
+  const store = await setup();
+  try {
+    const previous = store.membershipRevision();
+    await store.applyHistory(thread, history([remote('Before revocation')]));
+    await store.revoke(thread);
+    await store.cacheConversations([conversation], previous);
+    await store.applyHistory(
+      thread,
+      history([remote('Stale payload')]),
+      time,
+      conversation,
+      previous,
+    );
+    assert.deepEqual(await store.inbox(), []);
+    const saved = await store.thread(thread);
+    assert.equal(saved.active, false);
+    assert.deepEqual(saved.rows, []);
+    assert.deepEqual(saved.conversation.members, []);
+    assert.equal(saved.conversation.latest, null);
+  } finally {
+    await store.db.close();
+  }
+});

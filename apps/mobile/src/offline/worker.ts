@@ -205,12 +205,21 @@ export class OutboxWorker {
     }, 10_000);
     try {
       guard();
+      const revision = this.store.membershipRevision();
       const page = await this.dependencies.verify(
         job.conversation_id,
         controller.signal,
       );
       guard();
-      await this.store.applyHistory(job.conversation_id, page, this.now());
+      await this.store.applyHistory(
+        job.conversation_id,
+        page,
+        this.now(),
+        undefined,
+        revision,
+      );
+      if (revision !== this.store.membershipRevision())
+        throw new Error('MEMBERSHIP_CHANGED');
       await this.dependencies.clean?.().catch(() => undefined);
       const attachment = await this.store.attachment(job.id);
       if (attachment) await this.store.phase(job, 'UPLOADING', this.now());

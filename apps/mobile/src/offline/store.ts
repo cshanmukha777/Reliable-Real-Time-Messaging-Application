@@ -46,6 +46,7 @@ export class OfflineStore {
   readonly userId: string;
   private listeners = new Set<() => void>();
   private version = 0;
+  private accessVersion = 0;
 
   constructor(db: LocalDatabase, userId: string) {
     this.db = db;
@@ -66,8 +67,16 @@ export class OfflineStore {
     for (const callback of this.listeners) callback();
   }
 
-  async cacheConversations(rows: Conversation[]) {
+  membershipRevision() {
+    return this.accessVersion;
+  }
+
+  async cacheConversations(
+    rows: Conversation[],
+    revision = this.accessVersion,
+  ) {
     await this.db.transaction(async (tx) => {
+      if (revision !== this.accessVersion) return;
       for (const row of rows) await this.cacheConversation(tx, row);
     });
     this.changed();
@@ -500,8 +509,10 @@ export class OfflineStore {
     page: ReconciliationPage,
     now = Date.now(),
     detail?: Conversation,
+    revision = this.accessVersion,
   ) {
     await this.db.transaction(async (tx) => {
+      if (revision !== this.accessVersion) return;
       const key = `membership:${id}`;
       const row = await tx.first<{ value: string }>(
         'SELECT value FROM sync_metadata WHERE key=?',
@@ -535,6 +546,7 @@ export class OfflineStore {
   }
 
   private async revokeIn(tx: SqlExecutor, id: string, clearRoster = true) {
+    this.accessVersion++;
     await tx.run('UPDATE conversations SET active=0 WHERE id=?', id);
     if (clearRoster) {
       await tx.run('DELETE FROM members WHERE conversation_id=?', id);

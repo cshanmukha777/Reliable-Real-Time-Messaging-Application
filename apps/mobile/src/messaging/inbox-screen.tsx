@@ -39,12 +39,13 @@ export function ConnectedInbox() {
   const load = useCallback(
     async (after?: string) => {
       const run = ++epoch.current;
+      const revision = store.membershipRevision();
       setLoading(true);
       setError('');
       try {
         const page = await api.list(after);
         if (epoch.current !== run) return;
-        await store.cacheConversations(page.items);
+        await store.cacheConversations(page.items, revision);
         await store.connectionRecovered(Date.now());
         worker.wake();
         setCursor(page.nextCursor);
