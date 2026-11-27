@@ -124,7 +124,7 @@ export function MessageBubble({
           },
         ]}
       >
-        {message.text && (
+        {!!message.text && (
           <AppText variant="message" selectable>
             {message.text}
           </AppText>
