@@ -10,6 +10,7 @@ import {
   type Message,
   type MessageInput,
   type MessagePage,
+  type ReconciliationPage,
   type PageQuery,
 } from '@chatapp/contracts';
 import { decodeCursor, encodeCursor, fingerprint } from './policy';
@@ -117,7 +118,8 @@ export class Messages {
     conversationId: string,
     query: PageQuery,
     term?: string,
-  ): Promise<MessagePage> {
+    reconcile = false,
+  ): Promise<MessagePage | ReconciliationPage> {
     const cursor = decodeCursor(query.cursor);
     return this.repository.atomic(async (tx) => {
       const membership = await this.repository.membership(
@@ -130,6 +132,7 @@ export class Messages {
         : await tx.message.findMany({
             where: {
               ...this.visible(membership),
+              ...(reconcile && { deletedAt: { isSet: true } }),
               ...(cursor && {
                 OR: [
                   { createdAt: { lt: cursor.createdAt } },
@@ -142,10 +145,16 @@ export class Messages {
           });
       const page = rows.slice(0, query.limit);
       const last = page.at(-1);
+      const items = await this.present(tx, page);
+      const nextCursor = rows.length > query.limit && last ? encodeCursor(last) : null;
+      if (!reconcile) return { items, nextCursor };
+      const mine = new Map(page.filter((row) => row.senderId === userId).map((row) => [row.id, row.clientMessageId]));
       return {
-        items: await this.present(tx, page),
-        nextCursor:
-          rows.length > query.limit && last ? encodeCursor(last) : null,
+        items: items.map((item) => {
+          const clientMessageId = mine.get(item.id);
+          return { ...item, ...(clientMessageId && { clientMessageId }) };
+        }),
+        nextCursor, visibleFrom: membership.visibleFrom,
       };
     });
   }

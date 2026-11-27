@@ -18,6 +18,8 @@ import type { UploadInput } from '@chatapp/contracts';
 export const uploadSeconds = 120;
 export const downloadSeconds = 45;
 
+export class AttachmentMissingBytes extends BadRequestException {}
+
 @Injectable()
 export class AttachmentStorage {
   private readonly internal?: S3Client;
@@ -75,8 +77,11 @@ export class AttachmentStorage {
       .send(new GetObjectCommand({ Bucket: this.bucket, Key: key }), {
         abortSignal: AbortSignal.timeout(12000),
       })
-      .catch(() => {
-        throw new BadRequestException();
+      .catch((error: unknown) => {
+        if (error instanceof Error && ['NoSuchKey', 'NotFound'].includes(error.name)) {
+          throw new AttachmentMissingBytes();
+        }
+        throw new ServiceUnavailableException();
       });
     if (!object.Body) throw new BadRequestException();
     const parts = [];

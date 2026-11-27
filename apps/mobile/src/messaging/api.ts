@@ -8,6 +8,8 @@ import {
   messagePageSchema,
   messageSchema,
   peopleSchema,
+  reconciliationPageSchema,
+  recoverableUploadSchema,
   searchPageSchema,
   uploadGrantSchema,
   type GroupInput,
@@ -24,16 +26,19 @@ interface Session {
 type Transport = (
   url: string,
   options: RequestInit,
-) => Promise<Pick<Response, 'ok' | 'status' | 'url' | 'redirected' | 'json'>>;
+) => Promise<Pick<Response, 'ok' | 'status' | 'url' | 'redirected' | 'json'> & Partial<Pick<Response, 'headers'>>>;
 
 export class MessagingError extends Error {
   readonly status: number;
   readonly code: string;
 
-  constructor(status: number, code: string) {
+  readonly retryAfter?: number;
+
+  constructor(status: number, code: string, retryAfter?: number) {
     super('Messaging request failed.');
     this.status = status;
     this.code = code;
+    if (retryAfter !== undefined) this.retryAfter = retryAfter;
   }
 }
 
@@ -51,10 +56,14 @@ export class MessagingApi {
     path: string,
     schema: ZodType<T>,
     body?: object,
+    signal?: AbortSignal,
   ): Promise<T> {
     const url = `${this.session.origin}/${API_VERSION}/${path}`;
     return this.session.authorized(async (token) => {
+      signal?.throwIfAborted();
       const controller = new AbortController();
+      const abort = () => controller.abort();
+      signal?.addEventListener('abort', abort, { once: true });
       const timer = setTimeout(() => controller.abort(), 22000);
       try {
         const response = await this.transport(url, {
@@ -80,11 +89,13 @@ export class MessagingApi {
           throw new MessagingError(
             response.status,
             error.success ? error.data.code : 'REQUEST_FAILED',
+            retryDelay(response.headers?.get('Retry-After')),
           );
         }
         return schema.parse(value);
       } finally {
         clearTimeout(timer);
+        signal?.removeEventListener('abort', abort);
       }
     });
   }
@@ -94,6 +105,8 @@ export class MessagingApi {
       'GET',
       `users/discover?${new URLSearchParams({ q: term })}`,
       peopleSchema,
+  reconciliationPageSchema,
+  recoverableUploadSchema,
     );
   }
   list(cursor?: string) {
@@ -111,8 +124,8 @@ export class MessagingApi {
   group(input: GroupInput) {
     return this.run('POST', 'conversations/group', conversationSchema, input);
   }
-  details(id: string) {
-    return this.run('GET', thread(id), conversationSchema);
+  details(id: string, signal?: AbortSignal) {
+    return this.run('GET', thread(id), conversationSchema, undefined, signal);
   }
   history(id: string, cursor?: string) {
     return this.run(
@@ -125,8 +138,8 @@ export class MessagingApi {
     const query = new URLSearchParams({ q: term, ...(cursor && { cursor }) });
     return this.run('GET', `${thread(id)}/search?${query}`, searchPageSchema);
   }
-  send(id: string, input: MessageInput) {
-    return this.run('POST', `${thread(id)}/messages`, messageSchema, input);
+  send(id: string, input: MessageInput, signal?: AbortSignal) {
+    return this.run('POST', `${thread(id)}/messages`, messageSchema, input, signal);
   }
   remove(id: string, messageId: string) {
     return this.run(
@@ -151,11 +164,18 @@ export class MessagingApi {
       input,
     );
   }
-  complete(id: string, attachmentId: string) {
+  reconcile(id: string, cursor?: string, signal?: AbortSignal) {
+    const query = new URLSearchParams({ reconcile: '1', ...(cursor && { cursor }) });
+    return this.run('GET', `${thread(id)}/messages?${query}`, reconciliationPageSchema, undefined, signal);
+  }
+  recoverUpload(id: string, operation: string, input: UploadInput, signal: AbortSignal) {
+    return this.run('POST', `${thread(id)}/attachments/recover/${operation}`, recoverableUploadSchema, input, signal);
+  }
+  complete(id: string, attachmentId: string, signal?: AbortSignal) {
     return this.run(
       'POST',
       `${thread(id)}/attachments/${encodeURIComponent(attachmentId)}/complete`,
-      attachmentSchema,
+      attachmentSchema, undefined, signal,
     );
   }
   download(id: string, attachmentId: string) {
@@ -169,4 +189,10 @@ export class MessagingApi {
 
 function thread(id: string) {
   return `conversations/${encodeURIComponent(id)}`;
+}
+
+export function retryDelay(value?: string | null, now = Date.now()) {
+  if (!value) return undefined;
+  const result = /^\d+$/.test(value) ? Number(value) * 1000 : Date.parse(value) - now;
+  return Number.isFinite(result) ? Math.min(86_400_000, Math.max(0, result)) : undefined;
 }
