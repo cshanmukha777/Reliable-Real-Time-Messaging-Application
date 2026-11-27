@@ -25,7 +25,9 @@
     "test:db": "npm run build:api && node --test apps/api/test/*.integration.cjs",
     "dev:api": "npm run build:contracts && npm run dev -w @chatapp/api",
     "dev:mobile": "npm run build:contracts && npm run start -w @chatapp/mobile",
-    "check:security": "node scripts/check-security.mjs"
+    "check:security": "node scripts/check-security.mjs",
+    "db:messaging": "npm run db:messaging -w @chatapp/api",
+    "storage:local": "npm run storage:local -w @chatapp/api"
   },
   "devDependencies": {
     "@types/node": "24.10.1",

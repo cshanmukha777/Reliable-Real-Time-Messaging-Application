@@ -13,6 +13,7 @@ export async function createApplication(environment: ApiEnvironment) {
     AppModule.forRoot(environment),
     {
       abortOnError: false,
+      bodyParser: false,
       logger:
         environment.NODE_ENV === 'test' ? false : ['error', 'warn', 'log'],
     },
@@ -20,12 +21,13 @@ export async function createApplication(environment: ApiEnvironment) {
   app.disable('x-powered-by');
   app.use(requestLogging);
   app.use(
-    ['/v1/auth', '/v1/users'],
+    ['/v1/auth', '/v1/users', '/v1/conversations'],
     (_request: Request, response: Response, next: NextFunction) => {
       response.setHeader('Cache-Control', 'no-store');
       next();
     },
   );
+  app.useBodyParser('json', { limit: '24kb' });
   app.enableVersioning({ type: VersioningType.URI });
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
@@ -38,7 +40,7 @@ export async function createApplication(environment: ApiEnvironment) {
   if (environment.CORS_ORIGINS.length > 0) {
     app.enableCors({
       origin: environment.CORS_ORIGINS,
-      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'OPTIONS'],
+      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     });
   }
   return app;

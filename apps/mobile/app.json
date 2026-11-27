@@ -15,7 +15,19 @@
       }
     },
     "android": { "package": "com.cshanmukha777.chatapp" },
-    "plugins": ["expo-router", "expo-sqlite", "expo-secure-store"],
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos to share in a ChatApp conversation.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
+    ],
     "experiments": { "typedRoutes": true }
   }
 }

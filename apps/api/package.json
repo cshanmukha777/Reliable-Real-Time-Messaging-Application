@@ -8,9 +8,13 @@
     "dev": "npm run build && node --env-file-if-exists=../../.env --watch dist/main.js",
     "start": "node --env-file-if-exists=../../.env dist/main.js",
     "prisma:generate": "prisma generate",
-    "db:push": "node --env-file-if-exists=../../.env ../../node_modules/prisma/build/index.js db push"
+    "db:push": "node --env-file-if-exists=../../.env ../../node_modules/prisma/build/index.js db push",
+    "db:messaging": "node --env-file-if-exists=../../.env prisma/messaging-indexes.cjs",
+    "storage:local": "node --env-file-if-exists=../../.env prisma/storage-bucket.cjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1178.0",
+    "@aws-sdk/s3-request-presigner": "3.1178.0",
     "@chatapp/contracts": "0.2.0",
     "@nestjs/common": "11.2.12",
     "@nestjs/core": "11.2.12",

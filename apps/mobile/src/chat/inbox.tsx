@@ -120,6 +120,11 @@ export function InboxScreen({
   onNew,
   previewLink,
   notice,
+  onRefresh,
+  refreshing = false,
+  live = false,
+  emptyOverride,
+  listFooter,
   inset = true,
 }: {
   conversations: readonly ConversationSummary[];
@@ -130,6 +135,11 @@ export function InboxScreen({
   onNew?: () => void;
   previewLink?: React.ReactNode;
   notice?: string;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  live?: boolean;
+  emptyOverride?: React.ReactNode;
+  listFooter?: React.ReactNode;
   inset?: boolean;
 }) {
   const { colors } = useTheme();
@@ -175,6 +185,14 @@ export function InboxScreen({
             <Avatar person={profile} size={36} />
           </PressTarget>
         )}
+        {onRefresh && (
+          <IconButton
+            icon="RotateCcw"
+            label="Refresh conversations"
+            onPress={onRefresh}
+            disabled={refreshing}
+          />
+        )}
         <IconButton icon="Settings2" label="Settings" onPress={onSettings} />
       </View>
       <View style={styles.inboxIntro}>
@@ -203,32 +221,34 @@ export function InboxScreen({
         <SearchField value={query} onChange={setQuery} />
         {conversations.length > 0 && (
           <View style={styles.filters}>
-            {filters.map((item) => (
-              <PressTarget
-                key={item}
-                accessibilityRole="button"
-                accessibilityState={{ selected: filter === item }}
-                onPress={() => setFilter(item)}
-                style={({ pressed }) => [
-                  styles.filter,
-                  {
-                    backgroundColor:
-                      filter === item
-                        ? colors.selected
-                        : pressed
-                          ? colors.pressed
-                          : 'transparent',
-                  },
-                ]}
-              >
-                <AppText
-                  variant="secondary"
-                  tone={filter === item ? 'accent' : 'secondary'}
+            {filters
+              .filter((item) => !live || item !== 'Unread')
+              .map((item) => (
+                <PressTarget
+                  key={item}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: filter === item }}
+                  onPress={() => setFilter(item)}
+                  style={({ pressed }) => [
+                    styles.filter,
+                    {
+                      backgroundColor:
+                        filter === item
+                          ? colors.selected
+                          : pressed
+                            ? colors.pressed
+                            : 'transparent',
+                    },
+                  ]}
                 >
-                  {item}
-                </AppText>
-              </PressTarget>
-            ))}
+                  <AppText
+                    variant="secondary"
+                    tone={filter === item ? 'accent' : 'secondary'}
+                  >
+                    {item}
+                  </AppText>
+                </PressTarget>
+              ))}
           </View>
         )}
         {previewLink}
@@ -251,32 +271,43 @@ export function InboxScreen({
         renderItem={({ item }) => (
           <ConversationRow conversation={item} onOpen={onOpen} />
         )}
+        {...(onRefresh && { onRefresh, refreshing })}
+        ListFooterComponent={<View>{listFooter}</View>}
         ListEmptyComponent={
-          term ? (
-            <EmptyState
-              title="No results"
-              detail={`Nothing matched “${query.trim()}”. Try a name or a word from a message.`}
-              action={{ label: 'Clear search', onPress: () => setQuery('') }}
-            />
-          ) : (
-            <EmptyState
-              title={
-                filter === 'Unread'
-                  ? 'You’re all caught up'
-                  : filter === 'Groups'
-                    ? 'No group conversations'
-                    : 'No conversations yet'
-              }
-              detail={
-                filter === 'All'
-                  ? 'Your conversations will appear here.'
-                  : 'Switch to All to see the rest of your inbox.'
-              }
-              {...(filter !== 'All' && {
-                action: { label: 'Show all', onPress: () => setFilter('All') },
-              })}
-            />
-          )
+          <View>
+            {emptyOverride ??
+              (term ? (
+                <EmptyState
+                  title="No results"
+                  detail={`Nothing matched “${query.trim()}”. Try a name or a word from a message.`}
+                  action={{
+                    label: 'Clear search',
+                    onPress: () => setQuery(''),
+                  }}
+                />
+              ) : (
+                <EmptyState
+                  title={
+                    filter === 'Unread'
+                      ? 'You’re all caught up'
+                      : filter === 'Groups'
+                        ? 'No group conversations'
+                        : 'No conversations yet'
+                  }
+                  detail={
+                    filter === 'All'
+                      ? 'Your conversations will appear here.'
+                      : 'Switch to All to see the rest of your inbox.'
+                  }
+                  {...(filter !== 'All' && {
+                    action: {
+                      label: 'Show all',
+                      onPress: () => setFilter('All'),
+                    },
+                  })}
+                />
+              ))}
+          </View>
         }
       />
     </AppScreen>

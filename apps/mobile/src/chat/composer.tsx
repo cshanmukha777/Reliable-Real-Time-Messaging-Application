@@ -52,7 +52,7 @@ export function MessageComposer({
             : {})}
         />
       )}
-      {error && (
+      {!!error && (
         <AppText
           variant="caption"
           tone="error"

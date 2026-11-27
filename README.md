@@ -1,6 +1,6 @@
 # ChatApp
 
-ChatApp is a university capstone for reliable messaging on iOS and Android. The workspace contains an Expo Router messaging design and developer preview, persistent native settings, real native authentication, a NestJS API, shared TypeScript contracts, and a local MongoDB replica set.
+ChatApp is a university capstone for reliable messaging on iOS and Android. The workspace contains an Expo Router messaging design and developer preview, persistent native settings, real native authentication and direct and group messaging, a NestJS API, shared TypeScript contracts, and a local MongoDB replica set.
 
 ## Quick start
 
@@ -17,6 +17,7 @@ docker compose -f infrastructure/mongodb/compose.yml up -d mongo
 docker compose -f infrastructure/mongodb/compose.yml run --rm mongo-init
 npm run prisma:generate
 npm run db:push
+npm run db:messaging
 npm run dev:api
 ```
 
@@ -30,6 +31,7 @@ In another terminal, after setting the mobile API address, run `npm run dev:mobi
 - [Stage 2 implementation and verification](docs/STAGE_2_IMPLEMENTATION.md)
 - [Stage 3 design preview and screenshots](docs/STAGE_3_IMPLEMENTATION.md)
 - [Stage 4 authentication and verification](docs/STAGE_4_IMPLEMENTATION.md)
+- [Stage 5 messaging and private attachment setup](docs/STAGE_5_IMPLEMENTATION.md)
 - [Architecture](docs/ARCHITECTURE.md), [ADR](docs/ADR/0001-system-architecture.md), and [implementation roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 - [Baseline audit](docs/PROJECT_AUDIT.md), [feature matrix](docs/FEATURE_MATRIX.md), and [quality gates](docs/QUALITY_GATES.md)
 
