@@ -1,3 +1,4 @@
+import { discoveryKey } from '../messaging/users.service';
 import {
   ConflictException,
   Injectable,
@@ -29,7 +30,7 @@ export class AuthService {
           select: { id: true },
         });
         await tx.profile.create({
-          data: { userId: user.id, displayName, avatarUrl: null },
+          data: { userId: user.id, displayName, discoveryKey: discoveryKey(displayName), avatarUrl: null },
         });
         return this.sessions.create(tx, user.id);
       });
@@ -61,7 +62,7 @@ export class AuthService {
   async updateProfile(userId: string, { displayName }: ProfileInput) {
     await this.repository.database.profile.update({
       where: { userId },
-      data: { displayName },
+      data: { displayName, discoveryKey: discoveryKey(displayName) },
     });
     const user = await this.repository.account(userId);
     if (!user || user.status !== 'ACTIVE') throw new UnauthorizedException();
