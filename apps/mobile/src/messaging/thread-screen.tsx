@@ -204,9 +204,11 @@ export function ConnectedThread({ id }: { id: string }) {
         setSendError('');
       }
       await clean().catch(() => undefined);
-    } catch {
+    } catch (error) {
       setSendError(
-        'Couldn’t save this attachment. Check device storage and try again.',
+        error instanceof Error && error.message.startsWith('Choose a ')
+          ? error.message
+          : 'Couldn’t save this attachment. Check device storage and try again.',
       );
     } finally {
       busy.current = false;
