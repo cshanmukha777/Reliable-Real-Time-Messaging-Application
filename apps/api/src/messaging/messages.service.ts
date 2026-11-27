@@ -10,7 +10,7 @@ import { publicAttachment } from './attachment-policy';
 export class Messages {
   constructor(private readonly repository: MessagingRepository, private readonly users: MessagingUsers) {}
 
-  async send(userId: string, conversationId: string, input: MessageInput) {
+  async send(userId: string, conversationId: string, input: MessageInput): Promise<Message> {
     const hash = fingerprint([conversationId, input.body, input.attachmentIds]);
     return this.repository.atomic(async (tx) => {
       const { membership } = await this.repository.lock(tx, conversationId, userId);
@@ -20,7 +20,7 @@ export class Messages {
       if (existing) {
         if (existing.fingerprint !== hash) throw new ConflictException();
         if (existing.sequence < membership.visibleFrom) throw new NotFoundException();
-        return (await this.present(tx, [existing]))[0];
+        return this.presentOne(tx, existing);
       }
       const sequence = (await tx.conversation.update({
         where: { id: conversationId }, data: { sequence: { increment: 1 } },
@@ -40,7 +40,7 @@ export class Messages {
         });
         if (result.count !== input.attachmentIds.length) throw new NotFoundException();
       }
-      return (await this.present(tx, [row]))[0];
+      return this.presentOne(tx, row);
     });
   }
 
@@ -72,9 +72,10 @@ export class Messages {
             orderBy: [{ createdAt: 'desc' }, { id: 'desc' }], take: query.limit + 1,
           });
       const page = rows.slice(0, query.limit);
+      const last = page.at(-1);
       return {
         items: await this.present(tx, page),
-        nextCursor: rows.length > query.limit ? encodeCursor(page[page.length - 1]) : null,
+        nextCursor: rows.length > query.limit && last ? encodeCursor(last) : null,
       };
     });
   }
@@ -109,7 +110,13 @@ export class Messages {
     const row = await tx.message.findFirst({
       where: this.visible(membership), orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
-    return row ? (await this.present(tx, [row]))[0] : null;
+    return row ? (await this.present(tx, [row]))[0] ?? null : null;
+  }
+
+  private async presentOne(tx: MessagingDb, row: Row) {
+    const [message] = await this.present(tx, [row]);
+    if (!message) throw new Error('Message could not be presented');
+    return message;
   }
 
   private async present(tx: MessagingDb, rows: Row[]): Promise<Message[]> {

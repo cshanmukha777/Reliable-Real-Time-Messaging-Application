@@ -13,6 +13,7 @@ export async function createApplication(environment: ApiEnvironment) {
     AppModule.forRoot(environment),
     {
       abortOnError: false,
+      bodyParser: false,
       logger:
         environment.NODE_ENV === 'test' ? false : ['error', 'warn', 'log'],
     },

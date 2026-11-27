@@ -288,7 +288,7 @@ export class SessionManager {
       void this.refresh().catch(() => undefined);
   }
 
-  private async authorized<T>(
+  async authorized<T>(
     request: (access: string) => Promise<T>,
   ): Promise<T> {
     if (this.closing) throw new Error('Session is closing.');

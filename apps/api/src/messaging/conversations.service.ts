@@ -56,7 +56,7 @@ export class Conversations {
   list(userId: string, limit: number, cursor?: string) {
     return this.repository.atomic(async (tx) => {
       const rows = await tx.membership.findMany({
-        where: { userId, active: true, conversationId: cursor ? { lt: cursor } : undefined },
+        where: { userId, active: true, ...(cursor && { conversationId: { lt: cursor } }) },
         orderBy: { conversationId: 'desc' }, take: limit + 1,
       });
       const page = rows.slice(0, limit);
@@ -69,7 +69,7 @@ export class Conversations {
         if (!row) throw new NotFoundException();
         return this.present(tx, row, membership);
       }));
-      return { items, nextCursor: rows.length > limit ? page[page.length - 1].conversationId : null };
+      return { items, nextCursor: rows.length > limit ? page.at(-1)?.conversationId ?? null : null };
     });
   }
 
