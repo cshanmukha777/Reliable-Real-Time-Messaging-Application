@@ -120,6 +120,11 @@ export function InboxScreen({
   onNew,
   previewLink,
   notice,
+  onRefresh,
+  refreshing = false,
+  live = false,
+  emptyOverride,
+  listFooter,
   inset = true,
 }: {
   conversations: readonly ConversationSummary[];
@@ -130,6 +135,11 @@ export function InboxScreen({
   onNew?: () => void;
   previewLink?: React.ReactNode;
   notice?: string;
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  live?: boolean;
+  emptyOverride?: React.ReactNode;
+  listFooter?: React.ReactNode;
   inset?: boolean;
 }) {
   const { colors } = useTheme();
@@ -175,6 +185,7 @@ export function InboxScreen({
             <Avatar person={profile} size={36} />
           </PressTarget>
         )}
+        {onRefresh && <IconButton icon="RotateCcw" label="Refresh conversations" onPress={onRefresh} disabled={refreshing} />}
         <IconButton icon="Settings2" label="Settings" onPress={onSettings} />
       </View>
       <View style={styles.inboxIntro}>
@@ -203,7 +214,7 @@ export function InboxScreen({
         <SearchField value={query} onChange={setQuery} />
         {conversations.length > 0 && (
           <View style={styles.filters}>
-            {filters.map((item) => (
+            {filters.filter((item) => !live || item !== 'Unread').map((item) => (
               <PressTarget
                 key={item}
                 accessibilityRole="button"
@@ -251,7 +262,9 @@ export function InboxScreen({
         renderItem={({ item }) => (
           <ConversationRow conversation={item} onOpen={onOpen} />
         )}
-        ListEmptyComponent={
+        {...(onRefresh && { onRefresh, refreshing })}
+        ListFooterComponent={listFooter ? <>{listFooter}</> : null}
+        ListEmptyComponent={emptyOverride ?? (
           term ? (
             <EmptyState
               title="No results"
@@ -277,7 +290,7 @@ export function InboxScreen({
               })}
             />
           )
-        }
+        )}
       />
     </AppScreen>
   );

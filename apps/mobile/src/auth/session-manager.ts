@@ -228,7 +228,7 @@ export class SessionManager {
       return Promise.reject(new Error('No session to refresh.'));
     clearTimeout(this.timer);
     this.access = null;
-    this.publish({ phase: 'refreshing' });
+    if (this.state.phase !== 'authenticated') this.publish({ phase: 'refreshing' });
     this.refreshFlight = this.rotate(this.saved, restoreUser).finally(() => {
       this.refreshFlight = undefined;
     });
@@ -272,7 +272,7 @@ export class SessionManager {
                 'Couldn’t clear the expired session. Unlock your device and retry.',
             });
         }
-      } else if (!this.closing) {
+      } else if (!this.closing && this.state.phase !== 'authenticated') {
         this.publish({
           phase: 'unavailable',
           detail:
