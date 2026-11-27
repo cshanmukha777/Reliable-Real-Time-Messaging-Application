@@ -30,7 +30,7 @@ services:
       - ./init-replica.js:/init-replica.js:ro
     entrypoint: ['mongosh', '--nodb', '--quiet', '/init-replica.js']
   objects:
-    image: ghcr.io/versity/versitygw:v1.11.0
+    image: ghcr.io/versity/versitygw:v1.11.0@sha256:8319a530d08d537426e2f855bae5280709795dc73a3f0c347973ef915d6343c5
     profiles: [attachments]
     command: ['--port', ':9000', '--quiet', 'posix', '/data']
     environment:

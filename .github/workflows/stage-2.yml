@@ -28,7 +28,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm install --global npm@11.19.1
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run prisma:generate
       - run: npm run lint
       - run: npm run typecheck
@@ -47,7 +47,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm install --global npm@11.19.1
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run prisma:generate
       - run: npm run test:api
 
@@ -61,10 +61,16 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm install --global npm@11.19.1
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: npm run build:contracts
-      - run: npm run doctor -w @chatapp/mobile
-      - run: npm run dependencies:check -w @chatapp/mobile
+      - name: Expo Doctor
+        env:
+          EXPO_DOCTOR_SKIP_DEPENDENCY_VERSION_CHECK: '1'
+        run: npm run doctor -w @chatapp/mobile
+      - name: Check against the locked Expo SDK catalog
+        run: |
+          EXPO_OFFLINE=1 npm run dependencies:check -w @chatapp/mobile
+          node scripts/check-expo-attachments.mjs
       - run: npm run router:check -w @chatapp/mobile
       - run: npm run typecheck -w @chatapp/mobile
       - name: Export Android and iOS bundles
@@ -95,7 +101,7 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm install --global npm@11.19.1
-      - run: npm ci
+      - run: npm ci --include=dev
       - run: docker compose -f infrastructure/mongodb/compose.yml up -d mongo
       - run: docker compose -f infrastructure/mongodb/compose.yml run --rm mongo-init
       - run: npm run prisma:generate
