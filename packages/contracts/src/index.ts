@@ -106,3 +106,5 @@ export function configurationSchema(allowLocalHttp = false) {
 export type AppConfiguration = z.infer<ReturnType<typeof configurationSchema>>;
 
 export * from './auth';
+
+export * from './messaging';

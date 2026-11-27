@@ -39,8 +39,10 @@ model Profile {
   user        User     @relation(fields: [userId], references: [id])
   displayName String
   avatarUrl   String?
+  discoveryKey String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  @@index([discoveryKey, userId])
 }
 
 model Session {
@@ -67,4 +69,80 @@ model SpentRefresh {
   rotatedAt   DateTime @default(now())
 
   @@index([sessionId])
+}
+
+enum ConversationKind {
+  DIRECT
+  GROUP
+}
+
+enum MemberRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+model Conversation {
+  id          String           @id @default(auto()) @map("_id") @db.ObjectId
+  identityKey String           @unique
+  fingerprint String
+  kind        ConversationKind
+  title       String?
+  directUsers String[]         @db.ObjectId
+  sequence    Int              @default(0)
+  revision    Int              @default(0)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  @@map("conversations")
+}
+
+model Membership {
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String     @db.ObjectId
+  userId         String     @db.ObjectId
+  role           MemberRole
+  active         Boolean
+  visibleFrom    Int
+  @@unique([conversationId, userId])
+  @@index([userId, active, conversationId])
+  @@index([conversationId, active, userId])
+  @@map("memberships")
+}
+
+model Message {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId  String   @db.ObjectId
+  senderId        String   @db.ObjectId
+  clientMessageId String
+  fingerprint     String
+  sequence        Int
+  body            String?
+  attachmentIds   String[] @db.ObjectId
+  createdAt       DateTime
+  deletedAt       DateTime?
+  @@unique([senderId, clientMessageId])
+  @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
+  @@map("messages")
+}
+
+enum AttachmentState {
+  PENDING
+  VERIFIED
+  ATTACHED
+}
+
+model Attachment {
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String          @db.ObjectId
+  ownerId        String          @db.ObjectId
+  state          AttachmentState
+  fileName       String
+  mimeType       String
+  size           Int
+  stagingKey     String
+  verifiedKey    String?
+  messageId      String?         @db.ObjectId
+  expiresAt      DateTime
+  @@index([ownerId, state, expiresAt])
+  @@map("attachments")
 }
