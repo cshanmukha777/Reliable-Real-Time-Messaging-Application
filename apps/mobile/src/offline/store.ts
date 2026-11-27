@@ -1,7 +1,7 @@
 import { clientOperationIdSchema, uploadInputSchema, type Conversation, type Message, type Person, type ReconciliationPage, type UploadInput } from '@chatapp/contracts';
 import type { LocalDatabase, SqlExecutor } from '../sqlite-core.ts';
 
-export type Stage = { id: string; input: UploadInput };
+export type Stage = { id: string; input: UploadInput; checksum?: string };
 export type Draft = { body: string; file: Stage | null };
 export type OutboxState =
   | 'QUEUED' | 'CLAIMED' | 'UPLOADING' | 'SENDING' | 'RETRY_WAIT'
@@ -80,7 +80,7 @@ export class OfflineStore {
     await this.db.transaction(async (tx) => {
       if (draft.file) {
         const fileId = clientOperationIdSchema.parse(draft.file.id);
-        const file = { id: fileId, input: uploadInputSchema.parse(draft.file.input) };
+        const file = { ...draft.file, id: fileId, input: uploadInputSchema.parse(draft.file.input) };
         await tx.run('INSERT OR IGNORE INTO staged_files VALUES (?,?)', fileId, JSON.stringify(file));
       }
       await tx.run(`INSERT INTO drafts VALUES (?,?,?,?)
@@ -211,7 +211,7 @@ export class OfflineStore {
       const key = `membership:${id}`;
       const row = await tx.first<{value:string}>('SELECT value FROM sync_metadata WHERE key=?',key);
       if (row && Number(row.value) > page.visibleFrom) return;
-      if (row && Number(row.value) !== page.visibleFrom) await this.revokeIn(tx,id);
+      if (row && Number(row.value) !== page.visibleFrom) await this.revokeIn(tx,id,false);
       await tx.run('UPDATE conversations SET active=1 WHERE id=?',id);
       await tx.run('INSERT OR REPLACE INTO sync_metadata VALUES (?,?)',key,String(page.visibleFrom));
       for (const {clientMessageId,...message} of page.items) {
@@ -222,9 +222,9 @@ export class OfflineStore {
     this.changed();
   }
 
-  private async revokeIn(tx: SqlExecutor, id: string) {
+  private async revokeIn(tx: SqlExecutor, id: string, clearRoster = true) {
     await tx.run('UPDATE conversations SET active=0 WHERE id=?',id);
-    await tx.run('DELETE FROM members WHERE conversation_id=?',id);
+    if (clearRoster) await tx.run('DELETE FROM members WHERE conversation_id=?',id);
     await tx.run('DELETE FROM messages WHERE conversation_id=? AND server_id IS NOT NULL',id);
     await tx.run(`UPDATE outbox_operations SET state='BLOCKED_ACCESS',error='ACCESS_REVOKED',lease=NULL,lease_until=NULL
       WHERE conversation_id=? AND state<>'CONFIRMED'`,id);
