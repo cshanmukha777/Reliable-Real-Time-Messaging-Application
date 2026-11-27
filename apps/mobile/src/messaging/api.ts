@@ -60,7 +60,7 @@ export class MessagingApi {
   ): Promise<T> {
     const url = `${this.session.origin}/${API_VERSION}/${path}`;
     return this.session.authorized(async (token) => {
-      signal?.throwIfAborted();
+      if (signal?.aborted) throw new Error('SCOPE_PAUSED');
       const controller = new AbortController();
       const abort = () => controller.abort();
       signal?.addEventListener('abort', abort, { once: true });
@@ -164,8 +164,8 @@ export class MessagingApi {
       input,
     );
   }
-  reconcile(id: string, cursor?: string, signal?: AbortSignal) {
-    const query = new URLSearchParams({ reconcile: '1', ...(cursor && { cursor }) });
+  reconcile(id: string, cursor?: string, signal?: AbortSignal, limit?: number) {
+    const query = new URLSearchParams({ reconcile: '1', ...(cursor && { cursor }), ...(limit && { limit: String(limit) }) });
     return this.run('GET', `${thread(id)}/messages?${query}`, reconciliationPageSchema, undefined, signal);
   }
   recoverUpload(id: string, operation: string, input: UploadInput, signal: AbortSignal) {

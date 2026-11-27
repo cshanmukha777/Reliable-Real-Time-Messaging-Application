@@ -11,6 +11,8 @@ import { getRandomValues } from 'expo-crypto';
 import { AuthApi } from './auth-api';
 import { nativeCredentials } from './native-credentials';
 import { SessionManager } from './session-manager';
+import { accountSchema } from '@chatapp/contracts';
+import { openAccountStorage } from './account-storage';
 import type { AccountScope } from './account-scope';
 
 const Context = createContext<SessionManager | null>(null);
@@ -48,6 +50,13 @@ export function SessionProvider({
         new AuthApi(origin),
         nativeCredentials,
         operationId,
+        async (userId) => {
+          const db = await openAccountStorage({backendOrigin: origin, userId});
+          try {
+            const row = await db.first<{value: string}>("SELECT value FROM sync_metadata WHERE key='profile'");
+            return row ? accountSchema.parse(JSON.parse(row.value)) : null;
+          } finally { await db.close(); }
+        },
       ),
     [origin],
   );

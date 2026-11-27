@@ -21,7 +21,7 @@ export interface SessionApi {
 export type SessionState =
   | { phase: 'initializing' | 'authenticating' | 'refreshing' | 'signing-out' }
   | { phase: 'unauthenticated' | 'expired'; note?: string }
-  | { phase: 'authenticated'; user: Account }
+  | { phase: 'authenticated'; user: Account; offline?: true }
   | { phase: 'unavailable'; detail: string };
 
 export function sessionRoutes(phase: SessionState['phase']) {
@@ -61,17 +61,20 @@ export class SessionManager {
   private readonly api: SessionApi;
   private readonly storage: CredentialStorage;
   private readonly operationId: () => string;
+  private readonly offlineProfile: ((userId: string) => Promise<Account | null>) | undefined;
 
   constructor(
     origin: string,
     api: SessionApi,
     storage: CredentialStorage,
     operationId: () => string,
+    offlineProfile?: (userId: string) => Promise<Account | null>,
   ) {
     this.origin = origin;
     this.api = api;
     this.storage = storage;
     this.operationId = operationId;
+    this.offlineProfile = offlineProfile;
   }
 
   snapshot = () => this.state;
@@ -274,6 +277,18 @@ export class SessionManager {
             });
         }
       } else if (!this.closing && this.state.phase !== 'authenticated') {
+        const status = httpStatus(error);
+        const transient = error instanceof TypeError ||
+          (error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name)) ||
+          status === 408 || status === 429 || (status !== undefined && status >= 500);
+        const cached = transient
+          ? await this.offlineProfile?.(stored.userId).catch(() => null)
+          : null;
+        if (this.closing) throw error;
+        if (cached?.id === stored.userId) {
+          this.publish({ phase: 'authenticated', user: cached, offline: true });
+          throw error;
+        }
         this.publish({
           phase: 'unavailable',
           detail:
@@ -285,7 +300,7 @@ export class SessionManager {
   }
 
   onForeground() {
-    if (this.access && this.access.expires <= Date.now())
+    if (this.state.phase === 'authenticated' && (!this.access || this.access.expires <= Date.now()))
       void this.refresh().catch(() => undefined);
   }
 

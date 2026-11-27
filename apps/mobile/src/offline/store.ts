@@ -29,6 +29,7 @@ export class OfflineStore {
     return () => { this.listeners.delete(callback); };
   };
   snapshot = () => this.version;
+  notify() { this.changed(); }
   private changed() {
     this.version++;
     for (const callback of this.listeners) callback();
