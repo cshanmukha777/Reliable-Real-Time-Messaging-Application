@@ -2,6 +2,20 @@
 
 Assessment at Stage 1 baseline `8244028`. **Existing and verified** requires an observed working product path. **Partially implemented** means a relevant schema or component exists, with the product path incomplete. **Missing** means there is no implementation beyond possible planning. **Requires testing** is reserved for an apparently complete path with missing evidence. No baseline feature meets either the first or fourth definition.
 
+## Stage 5 update
+
+| Capability | Status | Evidence |
+| --- | --- | --- |
+| Direct and group conversations | Existing and verified over authenticated REST | Replica-set tests check concurrent canonical creation and group member persistence. |
+| Discovery, roles and visibility | Existing and verified over authenticated REST | Public profiles and authorization tests cover limits, role changes, removal and rejoin. |
+| Text messaging, history and search | Existing and verified over authenticated REST | Persisted messages load through scoped history and indexed search. Live incoming updates remain Stage 7. |
+| Duplicate-send protection | Existing and verified for online retries | Parallel and repeated retries return one message. Durable local retry is Stage 6. |
+| Sender-only deletion | Existing and verified over authenticated REST | Repeated delete clears content and blocks new attachment grants. |
+| Photo and file sharing | Requires testing on native devices | Local S3 verifies private transfer, object validation and access revocation. Native picker, preview and share require device verification. |
+| Receipt and offline states | Partially implemented | This stage shows confirmed sent and transient send feedback. Durable state is Stage 6 and receipts are Stage 7. |
+
+See the [Stage 5 test evidence](TEST_EVIDENCE.md).
+
 ## Stage 4 update
 
 | Capability | Status | Evidence |
