@@ -263,8 +263,8 @@ export function InboxScreen({
           <ConversationRow conversation={item} onOpen={onOpen} />
         )}
         {...(onRefresh && { onRefresh, refreshing })}
-        ListFooterComponent={listFooter ? <>{listFooter}</> : null}
-        ListEmptyComponent={emptyOverride ?? (
+        ListFooterComponent={<>{listFooter}</>}
+        ListEmptyComponent={<>{emptyOverride ?? (
           term ? (
             <EmptyState
               title="No results"
@@ -290,7 +290,7 @@ export function InboxScreen({
               })}
             />
           )
-        )}
+        )}</>}
       />
     </AppScreen>
   );
