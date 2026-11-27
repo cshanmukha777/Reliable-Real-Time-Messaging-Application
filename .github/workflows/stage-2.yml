@@ -117,7 +117,9 @@ jobs:
             echo "CHATAPP_TEST_S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY"
           } >> "$GITHUB_ENV"
           docker compose -f infrastructure/mongodb/compose.yml --profile attachments up -d objects
-          curl -sS --retry 15 --retry-delay 1 --retry-connrefused http://127.0.0.1:9000/ -o /dev/null
+          curl --silent --show-error --retry 15 --retry-all-errors --retry-delay 1 \
+            --connect-timeout 2 --max-time 3 --retry-max-time 35 \
+            http://127.0.0.1:9000/ --output /dev/null
       - run: npm run test:db
       - if: failure()
         run: docker compose -f infrastructure/mongodb/compose.yml --profile attachments logs --no-color mongo objects
