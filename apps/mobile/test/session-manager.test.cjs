@@ -276,3 +276,60 @@ test('background token rotation preserves authenticated routes and retries trans
   );
   assert.equal(sessionRoutes(manager.snapshot().phase).signedIn, true);
 });
+
+test('cold offline scope opens only for the secure stored account and a transient failure', async () => {
+  const { store } = vault();
+  const issued = response();
+  await store.write({
+    origin,
+    userId: account.id,
+    refreshToken: issued.refreshToken,
+  });
+  let offline = true;
+  const manager = new SessionManager(
+    origin,
+    {
+      async refresh() {
+        if (offline)
+          throw Object.assign(new Error('native fetch failed'), {
+            status: 0,
+            code: 'TRANSPORT',
+          });
+        return response();
+      },
+      me: async () => account,
+    },
+    store,
+    random,
+    async (id) => (id === account.id ? account : null),
+  );
+  await manager.restore();
+  assert.equal(manager.snapshot().offline, true);
+  assert.equal(manager.snapshot().user.id, account.id);
+  let called = false;
+  await assert.rejects(
+    manager.authorized(async () => {
+      called = true;
+    }),
+  );
+  assert.equal(called, false);
+  offline = false;
+  await manager.authorized(async () => {
+    called = true;
+  });
+  assert.equal(called, true);
+  assert.equal(manager.snapshot().offline, undefined);
+  const revoked = new SessionManager(
+    origin,
+    {
+      refresh: async () => {
+        throw expired();
+      },
+    },
+    store,
+    random,
+    async () => account,
+  );
+  await revoked.restore();
+  assert.equal(revoked.snapshot().phase, 'expired');
+});

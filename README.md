@@ -32,6 +32,7 @@ In another terminal, after setting the mobile API address, run `npm run dev:mobi
 - [Stage 3 design preview and screenshots](docs/STAGE_3_IMPLEMENTATION.md)
 - [Stage 4 authentication and verification](docs/STAGE_4_IMPLEMENTATION.md)
 - [Stage 5 messaging and private attachment setup](docs/STAGE_5_IMPLEMENTATION.md)
+- [Stage 6 offline cache, outbox and recovery](docs/STAGE_6_OFFLINE_RELIABILITY.md)
 - [Architecture](docs/ARCHITECTURE.md), [ADR](docs/ADR/0001-system-architecture.md), and [implementation roadmap](docs/IMPLEMENTATION_ROADMAP.md)
 - [Baseline audit](docs/PROJECT_AUDIT.md), [feature matrix](docs/FEATURE_MATRIX.md), and [quality gates](docs/QUALITY_GATES.md)
 

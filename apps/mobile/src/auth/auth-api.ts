@@ -1,3 +1,4 @@
+import { retryDelay } from '../retry-after';
 import { fetch } from 'expo/fetch';
 import {
   API_VERSION,
@@ -14,6 +15,7 @@ export class AuthApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
+    readonly retryAfter?: number,
   ) {
     super('Authentication request failed.');
   }
@@ -43,16 +45,24 @@ export class AuthApi {
           ...(bearer && { Authorization: `Bearer ${bearer}` }),
         },
         ...(body && { body: JSON.stringify(body) }),
+      }).catch(() => {
+        throw new AuthApiError(0, 'TRANSPORT');
       });
       if (response.redirected || response.url !== url)
         throw new AuthApiError(0, 'UNEXPECTED_ORIGIN');
       if (response.status === 204) return null;
-      const result: unknown = await response.json().catch(() => null);
+      const result: unknown = await response.json().catch((error: unknown) => {
+        if (response.ok && !(error instanceof SyntaxError)) {
+          throw new AuthApiError(0, 'TRANSPORT');
+        }
+        return null;
+      });
       if (!response.ok) {
         const error = errorResponseSchema.safeParse(result);
         throw new AuthApiError(
           response.status,
           error.success ? error.data.code : 'REQUEST_FAILED',
+          retryDelay(response.headers.get('Retry-After')),
         );
       }
       return result;

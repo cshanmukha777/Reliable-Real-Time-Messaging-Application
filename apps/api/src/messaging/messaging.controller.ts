@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import {
   API_VERSION,
+  clientOperationIdSchema,
   directInputSchema,
   discoverySchema,
   groupInputSchema,
@@ -21,6 +22,7 @@ import {
   mongoIdSchema,
   pageQuerySchema,
   searchQuerySchema,
+  reconciliationQuerySchema,
   uploadInputSchema,
   type Account,
 } from '@chatapp/contracts';
@@ -134,10 +136,13 @@ export class ConversationController {
     @Param('conversation') conversation: string,
     @Query() query: unknown,
   ) {
+    const { reconcile, ...page } = parse(reconciliationQuerySchema, query);
     return this.messages.page(
       id,
       objectId(conversation),
-      parse(pageQuerySchema, query),
+      page,
+      undefined,
+      reconcile === '1',
     );
   }
 
@@ -198,6 +203,22 @@ export class ConversationController {
     return this.attachments.grant(
       id,
       objectId(conversation),
+      parse(uploadInputSchema, body),
+    );
+  }
+
+  @Post(':conversation/attachments/recover/:operation')
+  @HttpCode(200)
+  recoverAttachment(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Param('operation') operation: string,
+    @Body() body: unknown,
+  ) {
+    return this.attachments.recover(
+      id,
+      objectId(conversation),
+      parse(clientOperationIdSchema, operation),
       parse(uploadInputSchema, body),
     );
   }
