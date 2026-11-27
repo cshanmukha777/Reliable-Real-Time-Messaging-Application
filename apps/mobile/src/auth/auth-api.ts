@@ -45,6 +45,8 @@ export class AuthApi {
           ...(bearer && { Authorization: `Bearer ${bearer}` }),
         },
         ...(body && { body: JSON.stringify(body) }),
+      }).catch(() => {
+        throw new AuthApiError(0, 'TRANSPORT');
       });
       if (response.redirected || response.url !== url)
         throw new AuthApiError(0, 'UNEXPECTED_ORIGIN');

@@ -290,7 +290,11 @@ test('cold offline scope opens only for the secure stored account and a transien
     origin,
     {
       async refresh() {
-        if (offline) throw new TypeError('fetch failed');
+        if (offline)
+          throw Object.assign(new Error('native fetch failed'), {
+            status: 0,
+            code: 'TRANSPORT',
+          });
         return response();
       },
       me: async () => account,

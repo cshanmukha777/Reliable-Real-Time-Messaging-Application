@@ -281,6 +281,9 @@ export class SessionManager {
       } else if (!this.closing && this.state.phase !== 'authenticated') {
         const status = httpStatus(error);
         const transient =
+          (error instanceof Error &&
+            'code' in error &&
+            error.code === 'TRANSPORT') ||
           error instanceof TypeError ||
           (error instanceof Error &&
             ['AbortError', 'TimeoutError'].includes(error.name)) ||
