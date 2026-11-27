@@ -177,6 +177,177 @@ test(
         status,
       );
 
+    await t.test(
+      'outbox survives committed upload and message responses being dropped',
+      { skip: !endpoint },
+      async () => {
+        const { OfflineStore } = require('../../mobile/src/offline/store.ts');
+        const { OutboxWorker } = require('../../mobile/src/offline/worker.ts');
+        const { openDatabase } = require('../../mobile/test/sqlite-worker.cjs');
+        const { migrate } = require('../../mobile/src/sqlite-core.ts');
+        const { reconciliationPageSchema } = require('@chatapp/contracts');
+        const { mkdtemp, rm } = require('node:fs/promises');
+        const { tmpdir } = require('node:os');
+        const folder = await mkdtemp(join(tmpdir(), 'chatapp-api-offline-'));
+        const path = join(folder, 'account.db');
+        const chat = await request('conversations/direct', ada, 'POST', {
+          userId: user(dev),
+        });
+        const root = base(chat.id);
+        const bytes = Buffer.from('Preserved through both failures');
+        const staged = {
+          id: randomUUID(),
+          input: {
+            fileName: 'recovery.txt',
+            mimeType: 'text/plain',
+            size: bytes.length,
+          },
+        };
+        const operation = randomUUID();
+        const openStore = async () => {
+          const sqlite = openDatabase(path);
+          await migrate(sqlite, true);
+          return new OfflineStore(sqlite, user(ada));
+        };
+        let store = await openStore();
+        let now = Date.now();
+        let uploaded = 0;
+        let posted = 0;
+        let firstRequest;
+        const verify = async (id) =>
+          reconciliationPageSchema.parse(
+            await request(`${base(id)}/messages?reconcile=1`, ada),
+          );
+        const recoverUpload = async (id, fileId, input) =>
+          request(
+            `${base(id)}/attachments/recover/${fileId}`,
+            ada,
+            'POST',
+            input,
+          );
+        const worker = () =>
+          new OutboxWorker(store, {
+            verify,
+            recoverUpload,
+            uuid: randomUUID,
+            eligible: () => true,
+            now: () => now,
+            random: () => 0,
+            async upload(grant) {
+              const res = await fetch(grant.url, {
+                method: 'PUT',
+                headers: grant.headers,
+                body: bytes,
+              });
+              assert.equal(res.status, 200);
+              uploaded++;
+              throw new TypeError('PUT response lost after storage commit');
+            },
+            complete: (id, a) =>
+              request(`${base(id)}/attachments/${a}/complete`, ada, 'POST'),
+            async send(id, input) {
+              firstRequest = input;
+              posted++;
+              await request(`${base(id)}/messages`, ada, 'POST', input);
+              throw new TypeError('message response lost after Mongo commit');
+            },
+          });
+        try {
+          await store.cacheConversations([chat]);
+          await store.saveDraft(
+            chat.id,
+            { body: 'Preserved message', file: staged },
+            now,
+          );
+          await store.enqueue(chat.id, operation, ada.user, now);
+          const [grant, replay] = await Promise.all([
+            recoverUpload(chat.id, staged.id, staged.input),
+            recoverUpload(chat.id, staged.id, staged.input),
+          ]);
+          assert.equal(grant.attachment.id, replay.attachment.id);
+          await request(
+            `${root}/attachments/recover/${staged.id}`,
+            ada,
+            'POST',
+            { ...staged.input, size: bytes.length + 1 },
+            409,
+          );
+          await request(
+            `${root}/attachments/recover/${staged.id}`,
+            chi,
+            'POST',
+            staged.input,
+            404,
+          );
+          await worker().processNext();
+          assert.equal(
+            (await store.thread(chat.id)).rows[0].state,
+            'RETRY_WAIT',
+          );
+          await store.db.close();
+          store = await openStore();
+          now += 5000;
+          await worker().processNext();
+          assert.equal(
+            (await store.thread(chat.id)).rows[0].state,
+            'RETRY_WAIT',
+          );
+          await store.db.close();
+          store = await openStore();
+          now += 5000;
+          await worker().processNext();
+          assert.equal(uploaded, 1);
+          assert.equal(posted, 1);
+          const rows = (await store.thread(chat.id)).rows;
+          assert.equal(rows.length, 1);
+          assert.equal(rows[0].state, 'CONFIRMED');
+          assert.equal(rows[0].message.attachments[0].id, grant.attachment.id);
+          assert.equal(firstRequest.clientMessageId, operation);
+          const repeated = await request(
+            `${root}/messages`,
+            ada,
+            'POST',
+            firstRequest,
+          );
+          assert.equal(rows[0].message.id, repeated.id);
+          assert.equal(
+            await db.message.count({
+              where: { senderId: user(ada), clientMessageId: operation },
+            }),
+            1,
+          );
+          const peerHistory = await request(
+            `${root}/messages?reconcile=1`,
+            dev,
+          );
+          assert.equal(peerHistory.items[0].clientMessageId, undefined);
+          await request(
+            `${root}/messages/${repeated.id}`,
+            ada,
+            'DELETE',
+            undefined,
+            204,
+          );
+          const tombstone = (await verify(chat.id)).items[0];
+          assert.equal(tombstone.body, '');
+          assert.equal(tombstone.deleted, true);
+          assert.equal(tombstone.clientMessageId, operation);
+        } finally {
+          await store.db.close().catch(() => undefined);
+          await rm(folder, { recursive: true, force: true });
+          // Remove the extra direct thread before baseline assertions count all direct conversations.
+          await db.message.deleteMany({ where: { conversationId: chat.id } });
+          await db.attachment.deleteMany({
+            where: { conversationId: chat.id },
+          });
+          await db.membership.deleteMany({
+            where: { conversationId: chat.id },
+          });
+          await db.conversation.delete({ where: { id: chat.id } });
+        }
+      },
+    );
+
     const discovery = peopleSchema.parse(
       await request('users/discover?q=be', ada),
     );

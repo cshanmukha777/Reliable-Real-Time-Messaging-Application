@@ -7,7 +7,7 @@ const {
 
 function openDatabase(path) {
   const db = new DatabaseSync(path);
-  db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 2000;");
+  db.exec('PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 2000;');
   const executor = {
     async exec(sql) {
       db.exec(sql);
