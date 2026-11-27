@@ -14,7 +14,7 @@ export function ConnectedInbox() {
   const { ignoredStoredBackend } = useFoundation();
   const { state } = useSession();
   const { api } = useMessaging();
-  const {store,version} = useOffline();
+  const { store, version, worker } = useOffline();
   const [rows, setRows] = useState<Conversation[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,11 +23,18 @@ export function ConnectedInbox() {
 
   useEffect(() => {
     let current = true;
-    void store.inbox().then((cached)=>{ if(current)setRows(cached); }).catch(() => {
-      if(current)setError('Couldn’t read saved conversations.');
-    });
-    return () => { current = false; };
-  },[store,version]);
+    void store
+      .inbox()
+      .then((cached) => {
+        if (current) setRows(cached);
+      })
+      .catch(() => {
+        if (current) setError('Couldn’t read saved conversations.');
+      });
+    return () => {
+      current = false;
+    };
+  }, [store, version]);
 
   const load = useCallback(
     async (after?: string) => {
@@ -38,6 +45,8 @@ export function ConnectedInbox() {
         const page = await api.list(after);
         if (epoch.current !== run) return;
         await store.cacheConversations(page.items);
+        await store.connectionRecovered(Date.now());
+        worker.wake();
         setCursor(page.nextCursor);
       } catch (error) {
         if (epoch.current === run)
@@ -46,7 +55,7 @@ export function ConnectedInbox() {
         if (epoch.current === run) setLoading(false);
       }
     },
-    [api,store],
+    [api, store, worker],
   );
 
   useFocusEffect(

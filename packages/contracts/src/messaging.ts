@@ -130,9 +130,15 @@ export const recoverableUploadSchema = z.union([
   uploadGrantSchema,
   z.strictObject({ attachment: attachmentSchema, ready: z.literal(true) }),
 ]);
-export const reconciliationQuerySchema = pageQuerySchema.extend({ reconcile: z.literal('1').optional() });
+export const reconciliationQuerySchema = pageQuerySchema.extend({
+  reconcile: z.literal('1').optional(),
+});
 export const reconciliationPageSchema = messagePageSchema.extend({
-  items: z.array(messageSchema.extend({ clientMessageId: clientOperationIdSchema.optional() })),
+  items: z.array(
+    messageSchema.extend({
+      clientMessageId: clientOperationIdSchema.optional(),
+    }),
+  ),
   visibleFrom: z.number().int().min(1),
 });
 export type ReconciliationPage = z.infer<typeof reconciliationPageSchema>;

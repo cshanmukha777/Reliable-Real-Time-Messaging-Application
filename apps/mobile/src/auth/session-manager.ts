@@ -61,7 +61,9 @@ export class SessionManager {
   private readonly api: SessionApi;
   private readonly storage: CredentialStorage;
   private readonly operationId: () => string;
-  private readonly offlineProfile: ((userId: string) => Promise<Account | null>) | undefined;
+  private readonly offlineProfile:
+    | ((userId: string) => Promise<Account | null>)
+    | undefined;
 
   constructor(
     origin: string,
@@ -278,9 +280,13 @@ export class SessionManager {
         }
       } else if (!this.closing && this.state.phase !== 'authenticated') {
         const status = httpStatus(error);
-        const transient = error instanceof TypeError ||
-          (error instanceof Error && ['AbortError', 'TimeoutError'].includes(error.name)) ||
-          status === 408 || status === 429 || (status !== undefined && status >= 500);
+        const transient =
+          error instanceof TypeError ||
+          (error instanceof Error &&
+            ['AbortError', 'TimeoutError'].includes(error.name)) ||
+          status === 408 ||
+          status === 429 ||
+          (status !== undefined && status >= 500);
         const cached = transient
           ? await this.offlineProfile?.(stored.userId).catch(() => null)
           : null;
@@ -300,7 +306,10 @@ export class SessionManager {
   }
 
   onForeground() {
-    if (this.state.phase === 'authenticated' && (!this.access || this.access.expires <= Date.now()))
+    if (
+      this.state.phase === 'authenticated' &&
+      (!this.access || this.access.expires <= Date.now())
+    )
       void this.refresh().catch(() => undefined);
   }
 

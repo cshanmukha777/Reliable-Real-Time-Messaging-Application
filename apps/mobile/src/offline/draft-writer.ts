@@ -13,8 +13,10 @@ export class DraftWriter {
 
   edit(id: string, draft: Draft) {
     clearTimeout(this.pending.get(id)?.timer);
-    const timer = setTimeout(() => { void this.flush(id).catch(this.onError); }, 180);
-    this.pending.set(id, { draft,timer });
+    const timer = setTimeout(() => {
+      void this.flush(id).catch(this.onError);
+    }, 180);
+    this.pending.set(id, { draft, timer });
   }
 
   async flush(id: string) {
@@ -22,7 +24,7 @@ export class DraftWriter {
     if (!pending) return;
     clearTimeout(pending.timer);
     // Leave the latest revision in memory until its transaction commits.
-    await this.store.saveDraft(id,pending.draft);
+    await this.store.saveDraft(id, pending.draft);
     if (this.pending.get(id) === pending) this.pending.delete(id);
   }
 

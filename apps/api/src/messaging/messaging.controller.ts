@@ -137,7 +137,13 @@ export class ConversationController {
     @Query() query: unknown,
   ) {
     const { reconcile, ...page } = parse(reconciliationQuerySchema, query);
-    return this.messages.page(id, objectId(conversation), page, undefined, reconcile === '1');
+    return this.messages.page(
+      id,
+      objectId(conversation),
+      page,
+      undefined,
+      reconcile === '1',
+    );
   }
 
   @Post(':conversation/messages')
@@ -209,7 +215,12 @@ export class ConversationController {
     @Param('operation') operation: string,
     @Body() body: unknown,
   ) {
-    return this.attachments.recover(id, objectId(conversation), parse(clientOperationIdSchema, operation), parse(uploadInputSchema, body));
+    return this.attachments.recover(
+      id,
+      objectId(conversation),
+      parse(clientOperationIdSchema, operation),
+      parse(uploadInputSchema, body),
+    );
   }
 
   @Post(':conversation/attachments/:attachment/complete')

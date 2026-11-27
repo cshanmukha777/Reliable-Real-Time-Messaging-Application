@@ -62,21 +62,31 @@ function secureUrl(url: string) {
 }
 
 export async function putStagedFile(
-  grant: { url: string; headers: Record<string,string> },
+  grant: { url: string; headers: Record<string, string> },
   file: PickedFile,
   signal: AbortSignal,
   progress: (value: number) => void,
 ) {
   if (signal.aborted) throw new Error('SCOPE_PAUSED');
-  const task = createUploadTask(secureUrl(grant.url), file.uri, {
-    httpMethod: 'PUT', uploadType: FileSystemUploadType.BINARY_CONTENT, headers: grant.headers,
-  }, ({ totalBytesSent }) => progress((100 * totalBytesSent) / file.input.size));
-  const abort = () => { void task.cancelAsync().catch(() => undefined); };
+  const task = createUploadTask(
+    secureUrl(grant.url),
+    file.uri,
+    {
+      httpMethod: 'PUT',
+      uploadType: FileSystemUploadType.BINARY_CONTENT,
+      headers: grant.headers,
+    },
+    ({ totalBytesSent }) => progress((100 * totalBytesSent) / file.input.size),
+  );
+  const abort = () => {
+    void task.cancelAsync().catch(() => undefined);
+  };
   signal.addEventListener('abort', abort, { once: true });
   const timer = setTimeout(abort, 90_000);
   try {
     const result = await task.uploadAsync();
-    if (!result || result.status < 200 || result.status >= 300) throw new Error('UPLOAD_INCOMPLETE');
+    if (!result || result.status < 200 || result.status >= 300)
+      throw new Error('UPLOAD_INCOMPLETE');
   } finally {
     clearTimeout(timer);
     signal.removeEventListener('abort', abort);

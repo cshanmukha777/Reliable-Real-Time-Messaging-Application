@@ -51,11 +51,18 @@ export function SessionProvider({
         nativeCredentials,
         operationId,
         async (userId) => {
-          const db = await openAccountStorage({backendOrigin: origin, userId});
+          const db = await openAccountStorage({
+            backendOrigin: origin,
+            userId,
+          });
           try {
-            const row = await db.first<{value: string}>("SELECT value FROM sync_metadata WHERE key='profile'");
+            const row = await db.first<{ value: string }>(
+              "SELECT value FROM sync_metadata WHERE key='profile'",
+            );
             return row ? accountSchema.parse(JSON.parse(row.value)) : null;
-          } finally { await db.close(); }
+          } finally {
+            await db.close();
+          }
         },
       ),
     [origin],

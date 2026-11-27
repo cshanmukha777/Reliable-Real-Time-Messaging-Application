@@ -36,8 +36,13 @@ const migrations = [
   },
 ];
 
-export async function migrate(database: LocalDatabase, account = false): Promise<void> {
-  const versions = account ? [...migrations, { version: 2, sql: offlineSchema }] : migrations;
+export async function migrate(
+  database: LocalDatabase,
+  account = false,
+): Promise<void> {
+  const versions = account
+    ? [...migrations, { version: 2, sql: offlineSchema }]
+    : migrations;
   await database.transaction(async (tx) => {
     const row = await tx.first<{ user_version: number }>('PRAGMA user_version');
     if (!row || row.user_version > versions.length || row.user_version < 0) {

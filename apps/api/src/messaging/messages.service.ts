@@ -146,15 +146,21 @@ export class Messages {
       const page = rows.slice(0, query.limit);
       const last = page.at(-1);
       const items = await this.present(tx, page);
-      const nextCursor = rows.length > query.limit && last ? encodeCursor(last) : null;
+      const nextCursor =
+        rows.length > query.limit && last ? encodeCursor(last) : null;
       if (!reconcile) return { items, nextCursor };
-      const mine = new Map(page.filter((row) => row.senderId === userId).map((row) => [row.id, row.clientMessageId]));
+      const mine = new Map(
+        page
+          .filter((row) => row.senderId === userId)
+          .map((row) => [row.id, row.clientMessageId]),
+      );
       return {
         items: items.map((item) => {
           const clientMessageId = mine.get(item.id);
           return { ...item, ...(clientMessageId && { clientMessageId }) };
         }),
-        nextCursor, visibleFrom: membership.visibleFrom,
+        nextCursor,
+        visibleFrom: membership.visibleFrom,
       };
     });
   }

@@ -78,7 +78,10 @@ export class AttachmentStorage {
         abortSignal: AbortSignal.timeout(12000),
       })
       .catch((error: unknown) => {
-        if (error instanceof Error && ['NoSuchKey', 'NotFound'].includes(error.name)) {
+        if (
+          error instanceof Error &&
+          ['NoSuchKey', 'NotFound'].includes(error.name)
+        ) {
           throw new AttachmentMissingBytes();
         }
         throw new ServiceUnavailableException();

@@ -1,3 +1,4 @@
+import { retryDelay } from '../retry-after';
 import { fetch } from 'expo/fetch';
 import {
   API_VERSION,
@@ -14,6 +15,7 @@ export class AuthApiError extends Error {
   constructor(
     readonly status: number,
     readonly code: string,
+    readonly retryAfter?: number,
   ) {
     super('Authentication request failed.');
   }
@@ -53,6 +55,7 @@ export class AuthApi {
         throw new AuthApiError(
           response.status,
           error.success ? error.data.code : 'REQUEST_FAILED',
+          retryDelay(response.headers.get('Retry-After')),
         );
       }
       return result;

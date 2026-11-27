@@ -6,6 +6,7 @@ import {
   Injectable,
   NotFoundException,
   PayloadTooLargeException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import type { UploadInput } from '@chatapp/contracts';
@@ -58,45 +59,77 @@ export class Attachments {
     });
   }
 
-  async recover(userId: string, conversationId: string, operation: string, input: UploadInput) {
-    if (input.size > this.environment.S3_MAX_UPLOAD_BYTES) throw new PayloadTooLargeException();
-    const id = createHash('sha256').update(JSON.stringify([userId, conversationId, operation]))
-      .digest('hex').slice(0, 24);
+  async recover(
+    userId: string,
+    conversationId: string,
+    operation: string,
+    input: UploadInput,
+  ) {
+    if (input.size > this.environment.S3_MAX_UPLOAD_BYTES)
+      throw new PayloadTooLargeException();
+    const id = createHash('sha256')
+      .update(JSON.stringify([userId, conversationId, operation]))
+      .digest('hex')
+      .slice(0, 24);
     const { row, existing } = await this.repository.atomic(async (tx) => {
       await this.repository.lock(tx, conversationId, userId);
       const known = await tx.attachment.findUnique({ where: { id } });
-      if (known && (
-        known.ownerId !== userId || known.conversationId !== conversationId ||
-        known.fileName !== input.fileName || known.mimeType !== input.mimeType || known.size !== input.size
-      )) throw new ConflictException();
+      if (
+        known &&
+        (known.ownerId !== userId ||
+          known.conversationId !== conversationId ||
+          known.fileName !== input.fileName ||
+          known.mimeType !== input.mimeType ||
+          known.size !== input.size)
+      )
+        throw new ConflictException();
       if (known?.state === 'ATTACHED') return { row: known, existing: true };
       if (!known || known.expiresAt <= new Date()) {
         const pending = await tx.attachment.count({
-          where: { ownerId: userId, state: { in: ['PENDING', 'VERIFIED'] }, expiresAt: { gt: new Date() } },
+          where: {
+            ownerId: userId,
+            state: { in: ['PENDING', 'VERIFIED'] },
+            expiresAt: { gt: new Date() },
+          },
         });
-        if (pending >= 12) throw new ConflictException();
+        if (pending >= 12) throw new ServiceUnavailableException();
       }
       const expiresAt = new Date(Date.now() + 15 * 60_000);
       const row = known
         ? await tx.attachment.update({ where: { id }, data: { expiresAt } })
-        : await tx.attachment.create({ data: {
-            id, ...input, ownerId: userId, conversationId, expiresAt, state: 'PENDING',
-            stagingKey: `staging/${randomUUID()}`,
-          } });
+        : await tx.attachment.create({
+            data: {
+              id,
+              ...input,
+              ownerId: userId,
+              conversationId,
+              expiresAt,
+              state: 'PENDING',
+              stagingKey: `staging/${randomUUID()}`,
+            },
+          });
       return { row, existing: Boolean(known) };
     });
-    if (row.state !== 'PENDING') return { ready: true as const, attachment: publicAttachment(row) };
+    if (row.state !== 'PENDING')
+      return { ready: true as const, attachment: publicAttachment(row) };
     if (existing) {
       try {
-        return { ready: true as const, attachment: await this.complete(userId, conversationId, id) };
+        return {
+          ready: true as const,
+          attachment: await this.complete(userId, conversationId, id),
+        };
       } catch (error) {
         if (!(error instanceof AttachmentMissingBytes)) throw error;
       }
     }
     return {
       attachment: publicAttachment(row),
-      url: await this.storage.upload(row.stagingKey, input), method: 'PUT' as const,
-      headers: { 'Content-Type': input.mimeType, 'Content-Length': String(input.size) },
+      url: await this.storage.upload(row.stagingKey, input),
+      method: 'PUT' as const,
+      headers: {
+        'Content-Type': input.mimeType,
+        'Content-Length': String(input.size),
+      },
     };
   }
 

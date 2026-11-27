@@ -147,16 +147,26 @@ export function MessageBubble({
             {message.time}
           </AppText>
           {message.status && <MessageStatus status={message.status} />}
-          {outgoing && (!message.status || message.status === 'sent') && onDelete && (
-            <IconButton
-              icon="Trash2"
-              label="Delete message"
-              onPress={() => onDelete(message.id)}
-            />
-          )}
+          {outgoing &&
+            (!message.status || message.status === 'sent') &&
+            onDelete && (
+              <IconButton
+                icon="Trash2"
+                label="Delete message"
+                onPress={() => onDelete(message.id)}
+              />
+            )}
         </View>
       )}
-      {message.stateDetail && <AppText variant="caption" tone="muted" accessibilityLiveRegion="polite">{message.stateDetail}</AppText>}
+      {message.stateDetail && (
+        <AppText
+          variant="caption"
+          tone="muted"
+          accessibilityLiveRegion="polite"
+        >
+          {message.stateDetail}
+        </AppText>
+      )}
       {(message.retryable ?? (failed && !message.stateDetail)) && onRetry && (
         <AppButton
           kind="quiet"
