@@ -34,6 +34,8 @@ export type MessageViewModel = {
   attachment?: Attachment;
   attachments?: Attachment[];
   animate?: boolean;
+  retryable?: boolean;
+  stateDetail?: string;
 };
 export type ThreadEntry =
   | MessageViewModel
@@ -145,7 +147,7 @@ export function MessageBubble({
             {message.time}
           </AppText>
           {message.status && <MessageStatus status={message.status} />}
-          {outgoing && onDelete && (
+          {outgoing && (!message.status || message.status === 'sent') && onDelete && (
             <IconButton
               icon="Trash2"
               label="Delete message"
@@ -154,7 +156,8 @@ export function MessageBubble({
           )}
         </View>
       )}
-      {failed && onRetry && (
+      {message.stateDetail && <AppText variant="caption" tone="muted" accessibilityLiveRegion="polite">{message.stateDetail}</AppText>}
+      {(message.retryable ?? (failed && !message.stateDetail)) && onRetry && (
         <AppButton
           kind="quiet"
           label="Retry message"

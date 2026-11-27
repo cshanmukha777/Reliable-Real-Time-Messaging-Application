@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Alert, Image, Modal, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
-import type { Attachment, Conversation, Message } from '@chatapp/contracts';
+import type { Attachment, Conversation } from '@chatapp/contracts';
 import { ThreadScreen } from '../chat/thread';
 import {
   AppButton,
@@ -20,31 +20,31 @@ import {
   downloadFile,
   pickFile,
   shareFile,
-  uploadFile,
 } from './native-files';
-import { type PickedFile } from './picker-input';
+import { useOffline } from '../offline/provider';
+import type { Draft, LocalMessage } from '../offline/store';
+import type { ThreadEntry } from '../chat/thread';
 import { requestMessage, useMessaging } from './use-api';
-import { mergeMessages, SendAttempt } from './draft';
+
 
 type OpenedFile = { uri: string; file: Attachment };
 
 export function ConnectedThread({ id }: { id: string }) {
   const { api, accountScope } = useMessaging();
+  const {store,drafts,files,worker,version,progress,storageError,clean} = useOffline();
   const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [rows, setRows] = useState<Message[]>([]);
+  const [locals,setLocals] = useState<LocalMessage[]>([]);
+  const [active,setActive] = useState(true);
+  const [ready,setReady] = useState(false);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
   const [actionError, setActionError] = useState('');
-  const [text, setText] = useState('');
-  const [file, setFile] = useState<PickedFile | null>(null);
+  const [draft,setDraft] = useState<Draft>({body:'',file:null});
   const [sending, setSending] = useState(false);
   const [openingFile, setOpeningFile] = useState(false);
   const [opened, setOpened] = useState<OpenedFile | null>(null);
-  const [progress, setProgress] = useState<number | undefined>();
   const [sendError, setSendError] = useState('');
-  const pending = useRef(new SendAttempt(randomUUID)).current;
-  const uploaded = useRef<Attachment | null>(null);
   const busy = useRef(false);
   const epoch = useRef(0);
   const alive = useRef(true);
@@ -63,100 +63,98 @@ export function ConnectedThread({ id }: { id: string }) {
     [opened],
   );
 
-  const load = useCallback(
-    async (after?: string) => {
-      const run = ++epoch.current;
-      setLoading(true);
-      setLoadError('');
-      try {
-        const [detail, page] = await Promise.all([
-          api.details(id),
-          api.history(id, after),
-        ]);
-        if (epoch.current !== run) return;
-        setConversation(detail);
-        setCursor(page.nextCursor);
-        setRows((current) =>
-          after ? mergeMessages(current, page.items) : page.items,
-        );
-      } catch (error) {
-        if (epoch.current === run) {
-          if (
-            error instanceof Error &&
-            'status' in error &&
-            [403, 404].includes(Number(error.status))
-          ) {
-            setConversation(null);
-            setRows([]);
-          }
-          setLoadError(requestMessage(error, 'Couldn’t load messages.'));
-        }
-      } finally {
-        if (epoch.current === run) setLoading(false);
-      }
-    },
-    [api, id],
-  );
+  useEffect(() => {
+    let current = true;
+    void store.thread(id).then((cached) => {
+      if (!current || !cached) return;
+      setConversation(cached.conversation);
+      setLocals(cached.rows);
+      setActive(cached.active);
+    }).catch(() => {
+      if (current) setLoadError('Couldn’t read saved messages.');
+    });
+    return () => { current = false; };
+  },[store,id,version]);
 
-  useFocusEffect(
-    useCallback(() => {
-      if (!busy.current) void load();
-      return () => {
-        epoch.current++;
-      };
-    }, [load]),
-  );
+  useEffect(() => {
+    let current = true;
+    void store.getDraft(id).then((saved) => {
+      if (current) { setDraft(saved); setReady(true); }
+    }).catch(() => { if(current) setSendError('Couldn’t read your draft.'); });
+    return () => { current = false; };
+  },[store,id]);
+
+  const load = useCallback(async (after?: string) => {
+    const run = ++epoch.current;
+    setLoading(true);
+    setLoadError('');
+    try {
+      const [detail,page] = await Promise.all([api.details(id),api.reconcile(id,after)]);
+      if (epoch.current !== run) return;
+      await store.cacheConversations([detail]);
+      await store.applyHistory(id,page);
+      await clean().catch(() => undefined);
+      if (epoch.current === run) setCursor(page.nextCursor);
+    } catch (error) {
+      if (epoch.current !== run) return;
+      if (error instanceof Error && 'status' in error && [403,404].includes(Number(error.status))) {
+        await store.revoke(id).catch(() => undefined);
+      }
+      if (epoch.current === run) setLoadError(requestMessage(error,'Couldn’t refresh. Saved messages are available offline.'));
+    } finally {
+      if (epoch.current === run) setLoading(false);
+    }
+  },[api,id,store,clean]);
+
+  useFocusEffect(useCallback(() => {
+    void load();
+    return () => {
+      epoch.current++;
+      void drafts.flush(id).catch(() => undefined);
+    };
+  },[load,drafts,id]));
+
+  function edit(next: Draft) {
+    setDraft(next);
+    drafts.edit(id,next);
+    setSendError('');
+  }
 
   async function send() {
-    if (busy.current || (!text.trim() && !file)) return;
+    const person = conversation?.members.find((member) => member.id === accountScope?.userId);
+    if (busy.current || !person || !active || (!draft.body.trim() && !draft.file)) return;
     busy.current = true;
     setSending(true);
     setSendError('');
     try {
-      if (file && !uploaded.current)
-        uploaded.current = await uploadFile(api, id, file, setProgress);
-      const payload = pending.payload(
-        text,
-        uploaded.current ? [uploaded.current.id] : [],
-      );
-      const result = await api.send(id, payload);
-      setRows((current) => mergeMessages(current, [result]));
-      pending.confirmed();
-      uploaded.current = null;
-      setText('');
-      setFile(null);
-    } catch (error) {
-      setSendError(
-        requestMessage(
-          error,
-          'Couldn’t confirm your message. Tap Send to retry.',
-        ),
-      );
+      await drafts.flush(id);
+      await store.enqueue(id,randomUUID(),person);
+      setDraft({body:'',file:null});
+      worker.wake();
+    } catch {
+      setSendError('Couldn’t save this message. Your draft is still here.');
     } finally {
       busy.current = false;
       setSending(false);
-      setProgress(undefined);
     }
   }
 
   async function select(photo: boolean) {
     if (busy.current) return;
     busy.current = true;
+    setSending(true);
     try {
       const selection = await pickFile(photo);
-      if (selection) {
-        uploaded.current = null;
-        setFile(selection);
-        setSendError('');
-      }
-    } catch (error) {
-      setSendError(
-        error instanceof Error && error.message.startsWith('Choose a ')
-          ? error.message
-          : 'Couldn’t open the picker.',
-      );
+      if (!selection) return;
+      const file = await files.stage(selection);
+      if (!alive.current) return;
+      edit({...draft,file});
+      await drafts.flush(id);
+    } catch {
+      setSendError('Couldn’t save this attachment. Check device storage and try again.');
     } finally {
       busy.current = false;
+      setSending(false);
     }
   }
 
@@ -164,17 +162,16 @@ export function ConnectedThread({ id }: { id: string }) {
     setActionError('');
     try {
       await api.remove(id, messageId);
-      setRows((current) =>
-        current.filter((message) => message.id !== messageId),
-      );
+      const message = locals.find((entry) => entry.message.id === messageId)?.message;
+      if (message) await store.removeCached(message);
     } catch (error) {
       setActionError(requestMessage(error, 'Couldn’t delete this message.'));
     }
   }
 
   async function open(attachmentId?: string) {
-    const attachment = rows
-      .flatMap((row) => row.attachments)
+    const attachment = locals
+      .flatMap(({ message }) => message.attachments)
       .find((item) => item.id === attachmentId);
     if (!attachment || openingFile) return;
     setActionError('');
@@ -210,6 +207,22 @@ export function ConnectedThread({ id }: { id: string }) {
     );
 
   const group = conversation.kind === 'GROUP';
+  const byId = new Map(locals.map((entry) => [entry.message.id,entry]));
+  const entries: ThreadEntry[] = threadEntries(locals.map((entry)=>entry.message),accountScope.userId,group).map((entry) => {
+    if ('divider' in entry) return entry;
+    const local = byId.get(entry.id);
+    if (!local?.state || local.state === 'CONFIRMED') return entry;
+    const failed = ['FAILED','BLOCKED_AUTH','BLOCKED_ACCESS'].includes(local.state);
+    const uploading = progress(entry.id);
+    return {...entry,
+      status: failed ? 'failed' : ['QUEUED','RETRY_WAIT'].includes(local.state) ? 'queued' : 'sending',
+      ...(local.file && {attachments: [{name: local.file.input.fileName,detail: fileSize(local.file.input.size)}]}),
+      ...(local.state === 'RETRY_WAIT' && {retryable: local.error !== 'RATE_LIMITED'}),
+      ...(uploading !== undefined && {stateDetail: `Uploading ${Math.round(Math.min(100,uploading))}%`}),
+      ...(local.error && {stateDetail: failureLabel(local.error)}),
+    };
+  });
+  const file = draft.file;
   return (
     <>
       <ThreadScreen
@@ -221,19 +234,21 @@ export function ConnectedThread({ id }: { id: string }) {
         }
         people={conversationPeople(conversation, accountScope.userId)}
         group={group}
-        entries={threadEntries(rows, accountScope.userId, group)}
+        entries={entries}
+        offline={!!loadError && active}
+        onRetry={(operation) => {
+          void store.retry(operation,Date.now()).then(worker.wake).catch(() => setActionError('Couldn’t schedule the retry.'));
+        }}
         onBack={() =>
           router.canGoBack() ? router.back() : router.replace('/')
         }
-        onDetails={() =>
+        {...(active && {onDetails: () =>
           router.push({
             pathname: '/conversation/[id]/members',
             params: { id },
-          })
-        }
-        onSearch={() =>
-          router.push({ pathname: '/conversation/[id]/search', params: { id } })
-        }
+          })})}
+        {...(active && {onSearch: () =>
+          router.push({ pathname: '/conversation/[id]/search', params: { id } })})}
         onDelete={(messageId) =>
           Alert.alert(
             'Delete message?',
@@ -274,7 +289,7 @@ export function ConnectedThread({ id }: { id: string }) {
             {!!loadError && (
               <ErrorState detail={loadError} onRetry={() => void load()} />
             )}
-            {!loading && !loadError && !rows.length && (
+            {!loading && !loadError && !locals.length && (
               <EmptyState
                 title="No messages yet"
                 detail="Start the conversation with a message."
@@ -289,11 +304,8 @@ export function ConnectedThread({ id }: { id: string }) {
           </>
         }
         composer={{
-          value: text,
-          onChange: (value) => {
-            setText(value);
-            setSendError('');
-          },
+          value: draft.body,
+          onChange: (body) => edit({...draft,body}),
           onSend: () => void send(),
           onAttach: () =>
             Alert.alert('Add an attachment', undefined, [
@@ -302,21 +314,20 @@ export function ConnectedThread({ id }: { id: string }) {
               { text: 'Cancel', style: 'cancel' },
             ]),
           onRemoveAttachment: () => {
-            uploaded.current = null;
-            setFile(null);
-            setSendError('');
+            edit({...draft,file:null});
+            void drafts.flush(id).then(clean).catch(() => setSendError('Couldn’t remove the saved attachment.'));
           },
           sending,
-          disabled: loading,
-          error: sendError,
-          ...(progress !== undefined && { progress }),
+          disabled: !ready || !active,
+          offline: !!loadError && active,
+          error: sendError || storageError,
           ...(file && {
             attachment: {
               name: file.input.fileName,
               detail: fileSize(file.input.size),
               ...(file.input.mimeType.startsWith('image/') && {
                 image: {
-                  source: { uri: file.uri },
+                  source: { uri: files.path(file.id) },
                   description: file.input.fileName,
                 },
               }),
@@ -354,3 +365,19 @@ const styles = StyleSheet.create({
   toolbar: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs },
   photo: { flex: 1, width: '100%' },
 });
+
+function failureLabel(code:string) {
+  const messages: Record<string,string> = {
+    ACCESS_REVOKED:'Access changed. Your unsent message is kept here.',
+    FILE_MISSING:'The saved file is missing.',
+    FILE_CHANGED:'The saved file is damaged.',
+    FILE_TOO_LARGE:'The file exceeds the server limit.',
+    CONFLICT:'The server rejected this operation identity.',
+    SIGN_IN:'Sign in again to resume.',
+    RATE_LIMITED:'Waiting for the server’s retry window.',
+    REJECTED:'The server rejected this message.',
+    CONNECTION:'Waiting for a connection.',
+    TEMPORARY:'The server will be retried.',
+  };
+  return messages[code] ?? 'Waiting to retry.';
+}

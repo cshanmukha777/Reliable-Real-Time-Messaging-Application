@@ -1,5 +1,5 @@
 import { useFocusEffect, router } from 'expo-router';
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import type { Conversation } from '@chatapp/contracts';
 import { InboxScreen } from '../chat/inbox';
 import { AppButton } from '../components/primitives';
@@ -7,18 +7,27 @@ import { ErrorState, LoadingState } from '../components/feedback';
 import { useSession } from '../auth/session-provider';
 import { useFoundation } from '../foundation';
 import { avatar, inboxRow } from './view-model';
-import { mergeMessages } from './draft';
+import { useOffline } from '../offline/provider';
 import { requestMessage, useMessaging } from './use-api';
 
 export function ConnectedInbox() {
   const { ignoredStoredBackend } = useFoundation();
   const { state } = useSession();
   const { api } = useMessaging();
+  const {store,version} = useOffline();
   const [rows, setRows] = useState<Conversation[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const epoch = useRef(0);
+
+  useEffect(() => {
+    let current = true;
+    void store.inbox().then((cached)=>{ if(current)setRows(cached); }).catch(() => {
+      if(current)setError('Couldn’t read saved conversations.');
+    });
+    return () => { current = false; };
+  },[store,version]);
 
   const load = useCallback(
     async (after?: string) => {
@@ -28,9 +37,7 @@ export function ConnectedInbox() {
       try {
         const page = await api.list(after);
         if (epoch.current !== run) return;
-        setRows((current) =>
-          after ? mergeMessages(current, page.items) : page.items,
-        );
+        await store.cacheConversations(page.items);
         setCursor(page.nextCursor);
       } catch (error) {
         if (epoch.current === run)
@@ -39,7 +46,7 @@ export function ConnectedInbox() {
         if (epoch.current === run) setLoading(false);
       }
     },
-    [api],
+    [api,store],
   );
 
   useFocusEffect(
