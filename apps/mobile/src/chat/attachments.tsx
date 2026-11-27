@@ -10,6 +10,8 @@ import { useTheme } from '../design/theme';
 import { radius, space } from '../design/tokens';
 
 export type Attachment = {
+  id?: string;
+  photo?: boolean;
   name: string;
   detail: string;
   image?: { source: ImageSourcePropType; description: string };
@@ -35,7 +37,7 @@ export function AttachmentPreview({
       : Math.round(Math.max(0, Math.min(100, progress)));
   const metadata = (
     <View style={styles.metadata}>
-      <Icon name={attachment.image ? 'Image' : 'FileText'} />
+      <Icon name={attachment.image || attachment.photo ? 'Image' : 'FileText'} />
       <View style={styles.metadataText}>
         <AppText variant="caption" numberOfLines={2}>
           {attachment.name}

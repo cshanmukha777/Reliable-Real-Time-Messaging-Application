@@ -32,6 +32,7 @@ export type MessageViewModel = {
   author?: string;
   status?: DeliveryStatus;
   attachment?: Attachment;
+  attachments?: Attachment[];
   animate?: boolean;
 };
 export type ThreadEntry =
@@ -80,18 +81,20 @@ export function MessageBubble({
   grouped = false,
   showMeta = true,
   onRetry,
+  onDelete,
   onOpenAttachment,
 }: {
   message: MessageViewModel;
   grouped?: boolean;
   showMeta?: boolean;
   onRetry?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onOpenAttachment?: (attachment: Attachment) => void;
 }) {
   const { colors } = useTheme();
   const outgoing = message.direction === 'outgoing';
   const failed = message.status === 'failed';
-  const attachment = message.attachment;
+  const attachments = message.attachments ?? (message.attachment ? [message.attachment] : []);
   const body = (
     <View
       style={[
@@ -108,7 +111,7 @@ export function MessageBubble({
       <View
         style={[
           styles.bubble,
-          attachment && styles.attachmentBubble,
+          attachments.length > 0 && styles.attachmentBubble,
           outgoing ? styles.outgoingShape : styles.incomingShape,
           {
             backgroundColor: failed
@@ -125,14 +128,15 @@ export function MessageBubble({
             {message.text}
           </AppText>
         )}
-        {attachment && (
+        {attachments.map((attachment) => (
           <AttachmentPreview
+            key={attachment.id ?? attachment.name}
             attachment={attachment}
             {...(onOpenAttachment && {
               onOpen: () => onOpenAttachment(attachment),
             })}
           />
-        )}
+        ))}
       </View>
       {(showMeta || failed) && (
         <View style={[styles.messageMeta, outgoing && styles.metaRight]}>
@@ -140,6 +144,7 @@ export function MessageBubble({
             {message.time}
           </AppText>
           {message.status && <MessageStatus status={message.status} />}
+          {outgoing && onDelete && <IconButton icon="Trash2" label="Delete message" onPress={() => onDelete(message.id)} />}
         </View>
       )}
       {failed && onRetry && (
@@ -189,7 +194,11 @@ export function ThreadScreen({
   onBack,
   onDetails,
   onRetry,
+  onDelete,
   onOpenAttachment,
+  beforeHistory,
+  afterHistory,
+  onSearch,
   inset = true,
 }: {
   name: string;
@@ -204,10 +213,19 @@ export function ThreadScreen({
   onBack: () => void;
   onDetails?: () => void;
   onRetry?: (id: string) => void;
+  onDelete?: (id: string) => void;
   onOpenAttachment?: (attachment: Attachment) => void;
+  beforeHistory?: React.ReactNode;
+  afterHistory?: React.ReactNode;
+  onSearch?: () => void;
   inset?: boolean;
 }) {
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
+  const last = entries.at(-1)?.id;
+  const scrollPending = useRef(true);
+  useEffect(() => {
+    if (last) scrollPending.current = true;
+  }, [last]);
   return (
     <AppScreen inset={inset}>
       <KeyboardAvoidingView
@@ -236,13 +254,14 @@ export function ThreadScreen({
             </View>
           }
           trailing={
-            onDetails && (
-              <IconButton
+            <View style={styles.headerLeft}>
+              {onSearch && <IconButton icon="Search" label="Search messages" onPress={onSearch} />}
+              {onDetails && <IconButton
                 icon="Info"
                 label="Conversation details"
                 onPress={onDetails}
-              />
-            )
+              />}
+            </View>
           }
         />
         <Divider />
@@ -257,7 +276,15 @@ export function ThreadScreen({
           contentContainerStyle={styles.history}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          onContentSizeChange={() => {
+            if (scrollPending.current) {
+              scrollPending.current = false;
+              scroll.current?.scrollToEnd({ animated: false });
+            }
+          }}
+          maintainVisibleContentPosition={{ minIndexForVisible: 1 }}
         >
+          {beforeHistory}
           {entries.map((entry, index) => {
             if ('divider' in entry)
               return (
@@ -287,10 +314,12 @@ export function ThreadScreen({
                 grouped={grouped}
                 showMeta={showMeta}
                 {...(onRetry && { onRetry })}
+                {...(onDelete && { onDelete })}
                 {...(onOpenAttachment && { onOpenAttachment })}
               />
             );
           })}
+          {afterHistory}
           {typing && !offline && <TypingIndicator name={typing} />}
         </ScrollView>
         <MessageComposer
