@@ -1,4 +1,8 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { Prisma } from '@prisma/client';
 import { prismaError } from '../auth/auth.repository';
 import { DatabaseService } from '../database/database.service';
@@ -33,7 +37,8 @@ export class MessagingRepository {
   async lock(tx: MessagingDb, conversationId: string, userId: string) {
     const membership = await this.membership(tx, conversationId, userId);
     const conversation = await tx.conversation.update({
-      where: { id: conversationId }, data: { revision: { increment: 1 } },
+      where: { id: conversationId },
+      data: { revision: { increment: 1 } },
     });
     return { membership, conversation };
   }

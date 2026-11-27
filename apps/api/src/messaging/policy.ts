@@ -12,13 +12,21 @@ export function fingerprint(payload: readonly unknown[]) {
   return createHash('sha256').update(JSON.stringify(payload)).digest('hex');
 }
 
-export function memberAuthority(actor: MemberRole, existing?: MemberRole, next?: MemberRole) {
-  if (existing === 'OWNER' || next === 'OWNER' || actor === 'MEMBER') throw new ForbiddenException();
-  if (actor === 'ADMIN' && (existing === 'ADMIN' || next === 'ADMIN')) throw new ForbiddenException();
+export function memberAuthority(
+  actor: MemberRole,
+  existing?: MemberRole,
+  next?: MemberRole,
+) {
+  if (existing === 'OWNER' || next === 'OWNER' || actor === 'MEMBER')
+    throw new ForbiddenException();
+  if (actor === 'ADMIN' && (existing === 'ADMIN' || next === 'ADMIN'))
+    throw new ForbiddenException();
 }
 
 export function encodeCursor(record: { createdAt: Date; id: string }) {
-  return Buffer.from(`${record.createdAt.toISOString()}:${record.id}`).toString('base64url');
+  return Buffer.from(`${record.createdAt.toISOString()}:${record.id}`).toString(
+    'base64url',
+  );
 }
 
 export function decodeCursor(value?: string) {
@@ -27,7 +35,11 @@ export function decodeCursor(value?: string) {
   const raw = Buffer.from(value, 'base64url').toString();
   const createdAt = new Date(raw.slice(0, 24));
   const id = mongoIdSchema.safeParse(raw.slice(25));
-  if (!id.success || !Number.isFinite(createdAt.getTime()) || encodeCursor({ createdAt, id: id.data }) !== value) {
+  if (
+    !id.success ||
+    !Number.isFinite(createdAt.getTime()) ||
+    encodeCursor({ createdAt, id: id.data }) !== value
+  ) {
     throw new BadRequestException();
   }
   return { createdAt, id: id.data };

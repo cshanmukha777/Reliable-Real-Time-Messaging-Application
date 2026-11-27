@@ -40,10 +40,14 @@ export function MembersScreen({ id }: { id: string }) {
     }
   }, [api, id]);
 
-  useFocusEffect(useCallback(() => {
-    void load();
-    return () => { epoch.current++; };
-  }, [load]));
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+      return () => {
+        epoch.current++;
+      };
+    }, [load]),
+  );
 
   async function change(person: Person, role: ManagedRole) {
     if (waiting || busy.current) return;
@@ -62,37 +66,80 @@ export function MembersScreen({ id }: { id: string }) {
     }
   }
 
-  const manage = row?.kind === 'GROUP' && (row.role === 'OWNER' || row.role === 'ADMIN');
+  const manage =
+    row?.kind === 'GROUP' && (row.role === 'OWNER' || row.role === 'ADMIN');
   function canChange(member: Member) {
-    return manage && member.role !== 'OWNER' && (row?.role === 'OWNER' || member.role === 'MEMBER');
+    return (
+      manage &&
+      member.role !== 'OWNER' &&
+      (row?.role === 'OWNER' || member.role === 'MEMBER')
+    );
   }
 
   return (
     <MessagingScreen title={row?.title ?? 'Members'}>
       {waiting && !row && <LoadingState label="Loading members…" />}
       {error && <RequestError message={error} />}
-      {error && !row && <AppButton kind="secondary" label="Try again" onPress={() => void load()} />}
+      {error && !row && (
+        <AppButton
+          kind="secondary"
+          label="Try again"
+          onPress={() => void load()}
+        />
+      )}
       {row?.members.map((member) => (
         <View key={member.id} style={styles.member}>
           <View style={styles.line}>
             <Avatar person={avatar(member)} size={36} />
             <View style={styles.name}>
               <AppText>{member.displayName}</AppText>
-              {row.kind === 'GROUP' && <AppText variant="caption" tone="muted">
-                {{ OWNER: 'Owner', ADMIN: 'Administrator', MEMBER: 'Member' }[member.role]}
-              </AppText>}
+              {row.kind === 'GROUP' && (
+                <AppText variant="caption" tone="muted">
+                  {
+                    {
+                      OWNER: 'Owner',
+                      ADMIN: 'Administrator',
+                      MEMBER: 'Member',
+                    }[member.role]
+                  }
+                </AppText>
+              )}
             </View>
           </View>
           {canChange(member) && (
             <View style={styles.line}>
-              {row.role === 'OWNER' && <AppButton kind="quiet" disabled={waiting}
-                label={member.role === 'ADMIN' ? 'Make member' : 'Make admin'}
-                onPress={() => void change(member, member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN')} />}
-              <AppButton label="Remove" kind="quiet" disabled={waiting}
-                onPress={() => Alert.alert('Remove member?', `${member.displayName} will lose access to this conversation.`, [
-                  { text: 'Cancel', style: 'cancel' },
-                  { text: 'Remove', style: 'destructive', onPress: () => void change(member, null) },
-                ])} />
+              {row.role === 'OWNER' && (
+                <AppButton
+                  kind="quiet"
+                  disabled={waiting}
+                  label={member.role === 'ADMIN' ? 'Make member' : 'Make admin'}
+                  onPress={() =>
+                    void change(
+                      member,
+                      member.role === 'ADMIN' ? 'MEMBER' : 'ADMIN',
+                    )
+                  }
+                />
+              )}
+              <AppButton
+                label="Remove"
+                kind="quiet"
+                disabled={waiting}
+                onPress={() =>
+                  Alert.alert(
+                    'Remove member?',
+                    `${member.displayName} will lose access to this conversation.`,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Remove',
+                        style: 'destructive',
+                        onPress: () => void change(member, null),
+                      },
+                    ],
+                  )
+                }
+              />
             </View>
           )}
           <Divider />
@@ -100,15 +147,35 @@ export function MembersScreen({ id }: { id: string }) {
       ))}
       {manage && (
         <>
-          <AppButton kind="secondary" label={adding ? 'Cancel adding member' : 'Add member'} disabled={waiting}
-            onPress={() => { setSelected([]); setAdding(!adding); }} />
+          <AppButton
+            kind="secondary"
+            label={adding ? 'Cancel adding member' : 'Add member'}
+            disabled={waiting}
+            onPress={() => {
+              setSelected([]);
+              setAdding(!adding);
+            }}
+          />
           {adding && (
             <>
-              <PeoplePicker api={api} selected={selected} disabled={waiting}
+              <PeoplePicker
+                api={api}
+                selected={selected}
+                disabled={waiting}
                 exclude={row.members.map(({ id }) => id)}
-                onSelect={(person) => setSelected(selected[0]?.id === person.id ? [] : [person])} />
-              <AppButton label="Add to group" loading={waiting} disabled={!selected.length}
-                onPress={() => { const target = selected[0]; if (target) void change(target, 'MEMBER'); }} />
+                onSelect={(person) =>
+                  setSelected(selected[0]?.id === person.id ? [] : [person])
+                }
+              />
+              <AppButton
+                label="Add to group"
+                loading={waiting}
+                disabled={!selected.length}
+                onPress={() => {
+                  const target = selected[0];
+                  if (target) void change(target, 'MEMBER');
+                }}
+              />
             </>
           )}
         </>
@@ -119,6 +186,11 @@ export function MembersScreen({ id }: { id: string }) {
 
 const styles = StyleSheet.create({
   member: { gap: space.xs },
-  line: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.sm },
+  line: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: space.sm,
+  },
   name: { flex: 1 },
 });

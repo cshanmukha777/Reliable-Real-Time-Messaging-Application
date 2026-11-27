@@ -30,7 +30,12 @@ export class AuthService {
           select: { id: true },
         });
         await tx.profile.create({
-          data: { userId: user.id, displayName, discoveryKey: discoveryKey(displayName), avatarUrl: null },
+          data: {
+            userId: user.id,
+            displayName,
+            discoveryKey: discoveryKey(displayName),
+            avatarUrl: null,
+          },
         });
         return this.sessions.create(tx, user.id);
       });

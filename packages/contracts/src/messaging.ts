@@ -23,11 +23,26 @@ export const groupInputSchema = z.strictObject({
   userIds: z.array(mongoIdSchema).min(1).max(31),
   clientGroupId: clientOperationIdSchema,
 });
-export const attachmentTypeSchema = z.enum(['image/jpeg', 'image/png', 'image/webp', 'application/pdf', 'text/plain']);
+export const attachmentTypeSchema = z.enum([
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'application/pdf',
+  'text/plain',
+]);
 export const uploadInputSchema = z.strictObject({
-  fileName: z.string().trim().min(1).max(120).regex(/^[^/\\\x00-\x1f\x7f]+$/),
+  fileName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[^/\\\x00-\x1f\x7f]+$/),
   mimeType: attachmentTypeSchema,
-  size: z.number().int().min(1).max(10 * 1024 * 1024),
+  size: z
+    .number()
+    .int()
+    .min(1)
+    .max(10 * 1024 * 1024),
 });
 export const attachmentSchema = uploadInputSchema.extend({ id: mongoIdSchema });
 export const uploadGrantSchema = z.strictObject({
@@ -37,14 +52,17 @@ export const uploadGrantSchema = z.strictObject({
   headers: z.record(z.string(), z.string()),
 });
 export const downloadGrantSchema = z.strictObject({ url: z.url() });
-export const messageInputSchema = z.strictObject({
-  clientMessageId: clientOperationIdSchema,
-  body: z.string().trim().max(4000).default(''),
-  attachmentIds: z.array(mongoIdSchema).max(4).default([]),
-}).refine(({ body, attachmentIds }) =>
-  (body.length > 0 || attachmentIds.length > 0) &&
-  new Set(attachmentIds).size === attachmentIds.length,
-);
+export const messageInputSchema = z
+  .strictObject({
+    clientMessageId: clientOperationIdSchema,
+    body: z.string().trim().max(4000).default(''),
+    attachmentIds: z.array(mongoIdSchema).max(4).default([]),
+  })
+  .refine(
+    ({ body, attachmentIds }) =>
+      (body.length > 0 || attachmentIds.length > 0) &&
+      new Set(attachmentIds).size === attachmentIds.length,
+  );
 export const messageSchema = z.strictObject({
   id: mongoIdSchema,
   conversationId: mongoIdSchema,
@@ -64,14 +82,32 @@ export const conversationSchema = z.strictObject({
   latest: messageSchema.nullable(),
 });
 export const pageQuerySchema = z.strictObject({
-  limit: z.string().regex(/^[1-9]\d?$/).transform(Number).pipe(z.number().max(50)).default(25),
+  limit: z
+    .string()
+    .regex(/^[1-9]\d?$/)
+    .transform(Number)
+    .pipe(z.number().max(50))
+    .default(25),
   cursor: z.string().min(1).max(280).optional(),
 });
 export const searchQuerySchema = pageQuerySchema.extend({
-  q: z.string().trim().min(2).max(80).regex(/^[\p{L}\p{N}]+(?:[ '-][\p{L}\p{N}]+)*$/u),
+  q: z
+    .string()
+    .trim()
+    .min(2)
+    .max(80)
+    .regex(/^[\p{L}\p{N}]+(?:[ '-][\p{L}\p{N}]+)*$/u),
 });
 export const messagePageSchema = z.strictObject({
   items: z.array(messageSchema),
+  nextCursor: z.string().nullable(),
+});
+export const searchPageSchema = z.strictObject({
+  items: z.array(
+    messageSchema
+      .pick({ id: true, sender: true, createdAt: true })
+      .extend({ preview: z.string().max(240) }),
+  ),
   nextCursor: z.string().nullable(),
 });
 export const conversationPageSchema = z.strictObject({
@@ -88,3 +124,4 @@ export type UploadInput = z.infer<typeof uploadInputSchema>;
 export type Attachment = z.infer<typeof attachmentSchema>;
 export type MessagePage = z.infer<typeof messagePageSchema>;
 export type PageQuery = z.infer<typeof pageQuerySchema>;
+export type SearchResult = z.infer<typeof searchPageSchema>['items'][number];

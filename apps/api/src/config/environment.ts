@@ -32,16 +32,29 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().default(''),
   S3_ENDPOINT: z.url().optional(),
   S3_PUBLIC_ENDPOINT: z.url().optional(),
-  S3_BUCKET: z.string().regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/).optional(),
+  S3_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/)
+    .optional(),
   S3_REGION: z.string().min(1).default('us-east-1'),
   S3_ACCESS_KEY_ID: z.string().min(1).optional(),
   S3_SECRET_ACCESS_KEY: z.string().min(1).optional(),
-  S3_MAX_UPLOAD_BYTES: z.coerce.number().int().min(1).max(10 * 1024 * 1024).default(10 * 1024 * 1024),
-
+  S3_MAX_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(10 * 1024 * 1024)
+    .default(10 * 1024 * 1024),
 });
 
 export function loadEnvironment(values: NodeJS.ProcessEnv) {
-  const result = envSchema.safeParse(Object.fromEntries(Object.entries(values).filter(([key, value]) => !key.startsWith('S3_') || value !== '')));
+  const result = envSchema.safeParse(
+    Object.fromEntries(
+      Object.entries(values).filter(
+        ([key, value]) => !key.startsWith('S3_') || value !== '',
+      ),
+    ),
+  );
   if (!result.success) {
     const fields = [
       ...new Set(result.error.issues.map((issue) => issue.path.join('.'))),
@@ -52,12 +65,24 @@ export function loadEnvironment(values: NodeJS.ProcessEnv) {
   const validateOrigin = backendOriginSchema(
     environment.NODE_ENV !== 'production',
   );
-  const storage = [environment.S3_ENDPOINT, environment.S3_BUCKET, environment.S3_ACCESS_KEY_ID, environment.S3_SECRET_ACCESS_KEY];
-  if ((storage.some(Boolean) || environment.S3_PUBLIC_ENDPOINT) && !storage.every(Boolean)) {
+  const storage = [
+    environment.S3_ENDPOINT,
+    environment.S3_BUCKET,
+    environment.S3_ACCESS_KEY_ID,
+    environment.S3_SECRET_ACCESS_KEY,
+  ];
+  if (
+    (storage.some(Boolean) || environment.S3_PUBLIC_ENDPOINT) &&
+    !storage.every(Boolean)
+  ) {
     throw new Error('Invalid API configuration: incomplete S3 configuration');
   }
-  for (const endpoint of [environment.S3_ENDPOINT, environment.S3_PUBLIC_ENDPOINT]) {
-    if (endpoint && !validateOrigin.safeParse(endpoint).success) throw new Error('Invalid API configuration: S3 endpoint');
+  for (const endpoint of [
+    environment.S3_ENDPOINT,
+    environment.S3_PUBLIC_ENDPOINT,
+  ]) {
+    if (endpoint && !validateOrigin.safeParse(endpoint).success)
+      throw new Error('Invalid API configuration: S3 endpoint');
   }
   const origins = CORS_ORIGINS.trim() === '' ? [] : CORS_ORIGINS.split(',');
   const corsOrigins = origins.map((value) => {

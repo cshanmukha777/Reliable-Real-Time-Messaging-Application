@@ -28,11 +28,20 @@ export function NewConversationScreen() {
     try {
       const ids = selected.map(({ id }) => id).sort();
       const row = group
-        ? await api.group({ title: title.trim(), userIds: ids, clientGroupId: pending.payload(title, ids).clientMessageId })
+        ? await api.group({
+            title: title.trim(),
+            userIds: ids,
+            clientGroupId: pending.payload(title, ids).clientMessageId,
+          })
         : await api.direct(first.id);
-      router.replace({ pathname: '/conversation/[id]', params: { id: row.id } });
+      router.replace({
+        pathname: '/conversation/[id]',
+        params: { id: row.id },
+      });
     } catch (error) {
-      setError(requestMessage(error, 'Couldn’t create the conversation. Try again.'));
+      setError(
+        requestMessage(error, 'Couldn’t create the conversation. Try again.'),
+      );
     } finally {
       active.current = false;
       setSaving(false);
@@ -41,17 +50,48 @@ export function NewConversationScreen() {
 
   return (
     <MessagingScreen title={group ? 'New group' : 'New conversation'}>
-      <AppButton label={group ? 'Start a direct conversation' : 'Create a group instead'} kind="quiet" disabled={saving}
-        onPress={() => { setGroup(!group); setSelected([]); setError(''); }} />
-      {group && <TextField label="Group name" value={title} onChangeText={setTitle} maxLength={80} editable={!saving} />}
-      <PeoplePicker api={api} selected={selected} disabled={saving} onSelect={(person) => {
-        setSelected((current) => current.some(({ id }) => id === person.id)
-          ? current.filter(({ id }) => id !== person.id)
-          : group ? current.length < 31 ? [...current, person] : current : [person]);
-      }} />
+      <AppButton
+        label={group ? 'Start a direct conversation' : 'Create a group instead'}
+        kind="quiet"
+        disabled={saving}
+        onPress={() => {
+          setGroup(!group);
+          setSelected([]);
+          setError('');
+        }}
+      />
+      {group && (
+        <TextField
+          label="Group name"
+          value={title}
+          onChangeText={setTitle}
+          maxLength={80}
+          editable={!saving}
+        />
+      )}
+      <PeoplePicker
+        api={api}
+        selected={selected}
+        disabled={saving}
+        onSelect={(person) => {
+          setSelected((current) =>
+            current.some(({ id }) => id === person.id)
+              ? current.filter(({ id }) => id !== person.id)
+              : group
+                ? current.length < 31
+                  ? [...current, person]
+                  : current
+                : [person],
+          );
+        }}
+      />
       {error && <RequestError message={error} />}
-      <AppButton label={group ? 'Create group' : 'Open conversation'} disabled={!selected.length || (group && !title.trim())}
-        loading={saving} onPress={() => void create()} />
+      <AppButton
+        label={group ? 'Create group' : 'Open conversation'}
+        disabled={!selected.length || (group && !title.trim())}
+        loading={saving}
+        onPress={() => void create()}
+      />
     </MessagingScreen>
   );
 }

@@ -94,7 +94,8 @@ export function MessageBubble({
   const { colors } = useTheme();
   const outgoing = message.direction === 'outgoing';
   const failed = message.status === 'failed';
-  const attachments = message.attachments ?? (message.attachment ? [message.attachment] : []);
+  const attachments =
+    message.attachments ?? (message.attachment ? [message.attachment] : []);
   const body = (
     <View
       style={[
@@ -144,7 +145,13 @@ export function MessageBubble({
             {message.time}
           </AppText>
           {message.status && <MessageStatus status={message.status} />}
-          {outgoing && onDelete && <IconButton icon="Trash2" label="Delete message" onPress={() => onDelete(message.id)} />}
+          {outgoing && onDelete && (
+            <IconButton
+              icon="Trash2"
+              label="Delete message"
+              onPress={() => onDelete(message.id)}
+            />
+          )}
         </View>
       )}
       {failed && onRetry && (
@@ -255,12 +262,20 @@ export function ThreadScreen({
           }
           trailing={
             <View style={styles.headerLeft}>
-              {onSearch && <IconButton icon="Search" label="Search messages" onPress={onSearch} />}
-              {onDetails && <IconButton
-                icon="Info"
-                label="Conversation details"
-                onPress={onDetails}
-              />}
+              {onSearch && (
+                <IconButton
+                  icon="Search"
+                  label="Search messages"
+                  onPress={onSearch}
+                />
+              )}
+              {onDetails && (
+                <IconButton
+                  icon="Info"
+                  label="Conversation details"
+                  onPress={onDetails}
+                />
+              )}
             </View>
           }
         />

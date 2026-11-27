@@ -12,10 +12,13 @@ export function verifyBytes(bytes: Buffer, expected: UploadInput) {
   if (bytes.length !== expected.size) throw new BadRequestException();
   const prefix = prefixes[expected.mimeType];
   const valid = prefix
-    ? bytes.length > prefix.length && bytes.subarray(0, prefix.length).equals(prefix)
+    ? bytes.length > prefix.length &&
+      bytes.subarray(0, prefix.length).equals(prefix)
     : expected.mimeType === 'image/webp'
-      ? bytes.length >= 16 && bytes.toString('ascii', 0, 4) === 'RIFF' &&
-        bytes.toString('ascii', 8, 12) === 'WEBP' && bytes.readUInt32LE(4) === bytes.length - 8
+      ? bytes.length >= 16 &&
+        bytes.toString('ascii', 0, 4) === 'RIFF' &&
+        bytes.toString('ascii', 8, 12) === 'WEBP' &&
+        bytes.readUInt32LE(4) === bytes.length - 8
       : validText(bytes);
   if (!valid) throw new BadRequestException();
 }

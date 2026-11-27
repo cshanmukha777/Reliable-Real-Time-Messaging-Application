@@ -8,7 +8,10 @@ export function discoveryKey(value: string) {
 
 @Injectable()
 export class MessagingUsers {
-  private readonly windows = new Map<string, { count: number; until: number }>();
+  private readonly windows = new Map<
+    string,
+    { count: number; until: number }
+  >();
 
   constructor(private readonly repository: MessagingRepository) {}
 
@@ -20,7 +23,8 @@ export class MessagingUsers {
         for (const [id, candidate] of this.windows) {
           if (candidate.until <= now) this.windows.delete(id);
         }
-        if (this.windows.size >= 10000) throw new HttpException('Too many requests', 429);
+        if (this.windows.size >= 10000)
+          throw new HttpException('Too many requests', 429);
       }
       window = { count: 0, until: now + 60000 };
       this.windows.set(userId, window);
@@ -41,7 +45,9 @@ export class MessagingUsers {
   }
 
   async verify(db: MessagingDb, ids: string[]) {
-    const count = await db.user.count({ where: { id: { in: ids }, status: 'ACTIVE' } });
+    const count = await db.user.count({
+      where: { id: { in: ids }, status: 'ACTIVE' },
+    });
     if (count !== ids.length) throw new NotFoundException();
   }
 
@@ -50,6 +56,8 @@ export class MessagingUsers {
       where: { userId: { in: ids } },
       select: { userId: true, displayName: true, avatarUrl: true },
     });
-    return new Map(profiles.map(({ userId: id, ...profile }) => [id, { id, ...profile }]));
+    return new Map(
+      profiles.map(({ userId: id, ...profile }) => [id, { id, ...profile }]),
+    );
   }
 }

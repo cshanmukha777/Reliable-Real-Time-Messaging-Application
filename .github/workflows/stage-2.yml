@@ -35,7 +35,7 @@ jobs:
       - run: npm run format:check
       - run: npm test
       - name: Review runtime dependency advisories
-        run: npm audit --omit=dev --audit-level=high
+        run: node scripts/check-audit.mjs
 
   backend:
     name: Backend and HTTP health

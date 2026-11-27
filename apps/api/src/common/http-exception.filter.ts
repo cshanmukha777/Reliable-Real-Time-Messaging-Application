@@ -13,10 +13,18 @@ import type { ErrorResponse } from '@chatapp/contracts';
 export class HttpExceptionFilter implements ExceptionFilter {
   catch(exception: unknown, host: ArgumentsHost): void {
     const response = host.switchToHttp().getResponse<Response>();
-    const parserType = typeof exception === 'object' && exception !== null && 'type' in exception ? exception.type : undefined;
-    const statusCode = exception instanceof HttpException
-      ? exception.getStatus()
-      : parserType === 'entity.too.large' ? 413 : parserType === 'entity.parse.failed' ? 400 : 500;
+    const parserType =
+      typeof exception === 'object' && exception !== null && 'type' in exception
+        ? exception.type
+        : undefined;
+    const statusCode =
+      exception instanceof HttpException
+        ? exception.getStatus()
+        : parserType === 'entity.too.large'
+          ? 413
+          : parserType === 'entity.parse.failed'
+            ? 400
+            : 500;
     const requestId = response.getHeader('X-Request-Id');
     const code = HttpStatus[statusCode] ?? 'HTTP_ERROR';
     const error: ErrorResponse = {

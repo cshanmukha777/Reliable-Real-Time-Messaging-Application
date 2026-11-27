@@ -10,7 +10,12 @@ export class AppModule {
   static forRoot(environment: ApiEnvironment): DynamicModule {
     return {
       module: AppModule,
-      imports: [ConfigModule.forRoot(environment), HealthModule, AuthModule, MessagingModule],
+      imports: [
+        ConfigModule.forRoot(environment),
+        HealthModule,
+        AuthModule,
+        MessagingModule,
+      ],
     };
   }
 }

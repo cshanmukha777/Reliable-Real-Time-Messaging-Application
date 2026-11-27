@@ -1,9 +1,28 @@
 import {
-  BadRequestException, Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query, UseGuards,
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UseGuards,
 } from '@nestjs/common';
 import {
-  API_VERSION, directInputSchema, discoverySchema, groupInputSchema, memberChangeSchema, messageInputSchema,
-  mongoIdSchema, pageQuerySchema, searchQuerySchema, uploadInputSchema, type Account,
+  API_VERSION,
+  directInputSchema,
+  discoverySchema,
+  groupInputSchema,
+  memberChangeSchema,
+  messageInputSchema,
+  mongoIdSchema,
+  pageQuerySchema,
+  searchQuerySchema,
+  uploadInputSchema,
+  type Account,
 } from '@chatapp/contracts';
 import type { ZodType } from 'zod';
 import { AccessTokenGuard, CurrentAccount } from '../auth/auth.guard';
@@ -35,7 +54,11 @@ export class DiscoveryController {
 @Controller({ path: 'conversations', version })
 @UseGuards(AccessTokenGuard)
 export class ConversationController {
-  constructor(private readonly conversations: Conversations, private readonly messages: Messages, private readonly attachments: Attachments) {}
+  constructor(
+    private readonly conversations: Conversations,
+    private readonly messages: Messages,
+    private readonly attachments: Attachments,
+  ) {}
 
   @Post('direct')
   @HttpCode(200)
@@ -52,66 +75,158 @@ export class ConversationController {
   @Get()
   list(@CurrentAccount() { id }: Account, @Query() query: unknown) {
     const { limit, cursor } = parse(pageQuerySchema, query);
-    return this.conversations.list(id, limit, cursor ? objectId(cursor) : undefined);
+    return this.conversations.list(
+      id,
+      limit,
+      cursor ? objectId(cursor) : undefined,
+    );
   }
 
   @Get(':conversation')
-  details(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string) {
+  details(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+  ) {
     return this.conversations.details(id, objectId(conversation));
   }
 
   @Get(':conversation/members')
-  async members(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string) {
-    return (await this.conversations.details(id, objectId(conversation))).members;
+  async members(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+  ) {
+    return (await this.conversations.details(id, objectId(conversation)))
+      .members;
   }
 
   @Patch(':conversation/members/:target')
-  putMember(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Param('target') target: string, @Body() body: unknown) {
-    return this.conversations.change(id, objectId(conversation), objectId(target), parse(memberChangeSchema, body).role);
+  putMember(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Param('target') target: string,
+    @Body() body: unknown,
+  ) {
+    return this.conversations.change(
+      id,
+      objectId(conversation),
+      objectId(target),
+      parse(memberChangeSchema, body).role,
+    );
   }
 
   @Delete(':conversation/members/:target')
-  removeMember(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Param('target') target: string) {
-    return this.conversations.change(id, objectId(conversation), objectId(target), null);
+  removeMember(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Param('target') target: string,
+  ) {
+    return this.conversations.change(
+      id,
+      objectId(conversation),
+      objectId(target),
+      null,
+    );
   }
 
   @Get(':conversation/messages')
-  history(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Query() query: unknown) {
-    return this.messages.page(id, objectId(conversation), parse(pageQuerySchema, query));
+  history(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Query() query: unknown,
+  ) {
+    return this.messages.page(
+      id,
+      objectId(conversation),
+      parse(pageQuerySchema, query),
+    );
   }
 
   @Post(':conversation/messages')
   @HttpCode(200)
-  send(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Body() body: unknown) {
-    return this.messages.send(id, objectId(conversation), parse(messageInputSchema, body));
+  send(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Body() body: unknown,
+  ) {
+    return this.messages.send(
+      id,
+      objectId(conversation),
+      parse(messageInputSchema, body),
+    );
   }
 
   @Delete(':conversation/messages/:message')
   @HttpCode(204)
-  deleteMessage(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Param('message') message: string) {
+  deleteMessage(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Param('message') message: string,
+  ) {
     return this.messages.remove(id, objectId(conversation), objectId(message));
   }
 
   @Get(':conversation/search')
-  search(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Query() query: unknown) {
+  async search(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Query() query: unknown,
+  ) {
     const { q, ...page } = parse(searchQuerySchema, query);
-    return this.messages.page(id, objectId(conversation), page, q);
+    const result = await this.messages.page(
+      id,
+      objectId(conversation),
+      page,
+      q,
+    );
+    return {
+      nextCursor: result.nextCursor,
+      items: result.items.map(({ id, sender, createdAt, body }) => ({
+        id,
+        sender,
+        createdAt,
+        preview: body.slice(0, 240),
+      })),
+    };
   }
 
   @Post(':conversation/attachments')
-  grant(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Body() body: unknown) {
-    return this.attachments.grant(id, objectId(conversation), parse(uploadInputSchema, body));
+  grant(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Body() body: unknown,
+  ) {
+    return this.attachments.grant(
+      id,
+      objectId(conversation),
+      parse(uploadInputSchema, body),
+    );
   }
 
   @Post(':conversation/attachments/:attachment/complete')
   @HttpCode(200)
-  complete(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Param('attachment') attachment: string) {
-    return this.attachments.complete(id, objectId(conversation), objectId(attachment));
+  complete(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Param('attachment') attachment: string,
+  ) {
+    return this.attachments.complete(
+      id,
+      objectId(conversation),
+      objectId(attachment),
+    );
   }
 
   @Post(':conversation/attachments/:attachment/download')
   @HttpCode(200)
-  download(@CurrentAccount() { id }: Account, @Param('conversation') conversation: string, @Param('attachment') attachment: string) {
-    return this.attachments.download(id, objectId(conversation), objectId(attachment));
+  download(
+    @CurrentAccount() { id }: Account,
+    @Param('conversation') conversation: string,
+    @Param('attachment') attachment: string,
+  ) {
+    return this.attachments.download(
+      id,
+      objectId(conversation),
+      objectId(attachment),
+    );
   }
 }
