@@ -444,9 +444,13 @@ test('two running processes contend for one durable claim', async (t) => {
   const id = await queued(store);
   await store.db.close();
   const script = join(__dirname, 'offline-restart.cjs');
-  const claims = await Promise.all(['claim-one', 'claim-two'].map((mode) =>
-    run(process.execPath,[script,path,thread,id,mode]).then(({stdout})=>JSON.parse(stdout)),
-  ));
-  assert.equal(claims.filter((claim) => claim === id).length,1);
-  assert.equal(claims.filter((claim) => claim === null).length,1);
+  const claims = await Promise.all(
+    ['claim-one', 'claim-two'].map((mode) =>
+      run(process.execPath, [script, path, thread, id, mode]).then(
+        ({ stdout }) => JSON.parse(stdout),
+      ),
+    ),
+  );
+  assert.equal(claims.filter((claim) => claim === id).length, 1);
+  assert.equal(claims.filter((claim) => claim === null).length, 1);
 });

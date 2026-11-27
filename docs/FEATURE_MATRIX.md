@@ -2,6 +2,17 @@
 
 Assessment at Stage 1 baseline `8244028`. **Existing and verified** requires an observed working product path. **Partially implemented** means a relevant schema or component exists, with the product path incomplete. **Missing** means there is no implementation beyond possible planning. **Requires testing** is reserved for an apparently complete path with missing evidence. No baseline feature meets either the first or fourth definition.
 
+## Stage 6 update
+
+| Capability | Evidence |
+| --- | --- |
+| Cached inbox and history, persistent drafts | Real SQLite migration and process-restart tests. Native offline relaunch pending. |
+| Durable sends, staged files and retry recovery | Real SQLite, MongoDB, private S3 and fault injection at committed upload and message responses. |
+| Account/backend isolation and revoked membership | Secure-session restore, worker scope checks, membership boundary tests and cached content revocation. |
+| Sender-side state | Queued, sending, confirmed sent and actionable durable failure states. Recipient receipts remain Stage 7. |
+
+See [Stage 6 verification](STAGE_6_VERIFICATION.md) for the native release gate.
+
 ## Stage 5 update
 
 | Capability | Status | Evidence |
