@@ -19,8 +19,9 @@ export async function createApplication(environment: ApiEnvironment) {
   );
   app.disable('x-powered-by');
   app.use(requestLogging);
+  app.useBodyParser('json', { limit: '24kb' });
   app.use(
-    ['/v1/auth', '/v1/users'],
+    ['/v1/auth', '/v1/users', '/v1/conversations'],
     (_request: Request, response: Response, next: NextFunction) => {
       response.setHeader('Cache-Control', 'no-store');
       next();
@@ -38,7 +39,7 @@ export async function createApplication(environment: ApiEnvironment) {
   if (environment.CORS_ORIGINS.length > 0) {
     app.enableCors({
       origin: environment.CORS_ORIGINS,
-      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'OPTIONS'],
+      methods: ['GET', 'HEAD', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     });
   }
   return app;
