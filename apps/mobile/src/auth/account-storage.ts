@@ -8,5 +8,5 @@ export async function openAccountStorage(scope: AccountScope) {
     CryptoDigestAlgorithm.SHA256,
     accountScopeKey(scope),
   );
-  return openLocalDatabase(`chatapp-account-${digest}.db`);
+  return openLocalDatabase(`chatapp-account-${digest}.db`, true);
 }

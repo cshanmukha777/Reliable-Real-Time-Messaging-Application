@@ -1,8 +1,11 @@
+import { offlineSchema } from './offline/schema.ts';
+
 export type QueryParameter = string | number | null;
 
 export interface SqlExecutor {
   exec(sql: string): Promise<void>;
   run(sql: string, ...parameters: QueryParameter[]): Promise<void>;
+  all<T>(sql: string, ...parameters: QueryParameter[]): Promise<T[]>;
   first<T>(sql: string, ...parameters: QueryParameter[]): Promise<T | null>;
 }
 
@@ -33,13 +36,14 @@ const migrations = [
   },
 ];
 
-export async function migrate(database: LocalDatabase): Promise<void> {
+export async function migrate(database: LocalDatabase, account = false): Promise<void> {
+  const versions = account ? [...migrations, { version: 2, sql: offlineSchema }] : migrations;
   await database.transaction(async (tx) => {
     const row = await tx.first<{ user_version: number }>('PRAGMA user_version');
-    if (!row || row.user_version > migrations.length || row.user_version < 0) {
+    if (!row || row.user_version > versions.length || row.user_version < 0) {
       throw new Error('This SQLite schema version is unsupported.');
     }
-    for (const migration of migrations) {
+    for (const migration of versions) {
       if (migration.version <= row.user_version) continue;
       await tx.exec(migration.sql);
       await tx.exec(`PRAGMA user_version = ${migration.version}`);
