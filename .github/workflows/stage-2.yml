@@ -34,6 +34,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run format:check
       - run: npm test
+      - name: Review runtime dependency advisories
+        run: npm audit --omit=dev --audit-level=high
 
   backend:
     name: Backend and HTTP health
@@ -70,6 +72,7 @@ jobs:
           DATABASE_URL: mongodb://CHATAPP_SERVER_ONLY_CANARY.invalid/chatapp_test
           CHATAPP_SERVER_ONLY_CANARY: CHATAPP_SERVER_ONLY_CANARY
           AUTH_SIGNING_KEY: CHATAPP_AUTH_KEY_CANARY
+          S3_SECRET_ACCESS_KEY: CHATAPP_STORAGE_CANARY
         run: |
           npm run export:android -w @chatapp/mobile
           npm run export:ios -w @chatapp/mobile
@@ -81,7 +84,7 @@ jobs:
           retention-days: 3
 
   database:
-    name: Replica-set database integration
+    name: Replica-set and private storage integration
     runs-on: ubuntu-24.04
     env:
       CHATAPP_TEST_DATABASE_URL: mongodb://127.0.0.1:27017/chatapp_test?replicaSet=chatapp-rs&directConnection=true
@@ -96,11 +99,24 @@ jobs:
       - run: docker compose -f infrastructure/mongodb/compose.yml up -d mongo
       - run: docker compose -f infrastructure/mongodb/compose.yml run --rm mongo-init
       - run: npm run prisma:generate
+      - name: Start the private S3-compatible service
+        run: |
+          export S3_ACCESS_KEY_ID="$(openssl rand -hex 12)"
+          export S3_SECRET_ACCESS_KEY="$(openssl rand -hex 24)"
+          echo "::add-mask::$S3_ACCESS_KEY_ID"
+          echo "::add-mask::$S3_SECRET_ACCESS_KEY"
+          {
+            echo 'CHATAPP_TEST_S3_ENDPOINT=http://127.0.0.1:9000'
+            echo "CHATAPP_TEST_S3_ACCESS_KEY_ID=$S3_ACCESS_KEY_ID"
+            echo "CHATAPP_TEST_S3_SECRET_ACCESS_KEY=$S3_SECRET_ACCESS_KEY"
+          } >> "$GITHUB_ENV"
+          docker compose -f infrastructure/mongodb/compose.yml --profile attachments up -d objects
+          curl -sS --retry 15 --retry-delay 1 --retry-connrefused http://127.0.0.1:9000/ -o /dev/null
       - run: npm run test:db
       - if: failure()
-        run: docker compose -f infrastructure/mongodb/compose.yml logs --no-color mongo
+        run: docker compose -f infrastructure/mongodb/compose.yml --profile attachments logs --no-color mongo objects
       - if: always()
-        run: docker compose -f infrastructure/mongodb/compose.yml down --volumes
+        run: docker compose -f infrastructure/mongodb/compose.yml --profile attachments down --volumes
 
   security:
     name: Secret and mobile bundle checks

@@ -34,14 +34,15 @@ model User {
 }
 
 model Profile {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @unique @db.ObjectId
-  user        User     @relation(fields: [userId], references: [id])
-  displayName String
-  avatarUrl   String?
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String   @unique @db.ObjectId
+  user         User     @relation(fields: [userId], references: [id])
+  displayName  String
+  avatarUrl    String?
   discoveryKey String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
   @@index([discoveryKey, userId])
 }
 
@@ -61,12 +62,12 @@ model Session {
 }
 
 model SpentRefresh {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  hash        String   @unique
-  sessionId   String   @db.ObjectId
-  session     Session  @relation(fields: [sessionId], references: [id])
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  hash          String   @unique
+  sessionId     String   @db.ObjectId
+  session       Session  @relation(fields: [sessionId], references: [id])
   operationHash String
-  rotatedAt   DateTime @default(now())
+  rotatedAt     DateTime @default(now())
 
   @@index([sessionId])
 }
@@ -93,6 +94,7 @@ model Conversation {
   revision    Int              @default(0)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+
   @@map("conversations")
 }
 
@@ -103,6 +105,7 @@ model Membership {
   role           MemberRole
   active         Boolean
   visibleFrom    Int
+
   @@unique([conversationId, userId])
   @@index([userId, active, conversationId])
   @@index([conversationId, active, userId])
@@ -110,16 +113,17 @@ model Membership {
 }
 
 model Message {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  conversationId  String   @db.ObjectId
-  senderId        String   @db.ObjectId
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId  String    @db.ObjectId
+  senderId        String    @db.ObjectId
   clientMessageId String
   fingerprint     String
   sequence        Int
   body            String?
-  attachmentIds   String[] @db.ObjectId
+  attachmentIds   String[]  @db.ObjectId
   createdAt       DateTime
   deletedAt       DateTime?
+
   @@unique([senderId, clientMessageId])
   @@index([conversationId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("messages")
@@ -143,6 +147,7 @@ model Attachment {
   verifiedKey    String?
   messageId      String?         @db.ObjectId
   expiresAt      DateTime
+
   @@index([ownerId, state, expiresAt])
   @@map("attachments")
 }

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { parseEnv } from 'node:util';
 
 const apiExample =
-  'DATABASE_URL=mongodb://127.0.0.1:27017/chatapp_dev?replicaSet=chatapp-rs&directConnection=true\nHOST=127.0.0.1\nPORT=3000\nNODE_ENV=development\nCORS_ORIGINS=\nAUTH_SIGNING_KEY=\nAUTH_ISSUER=chatapp-api';
+  'DATABASE_URL=mongodb://127.0.0.1:27017/chatapp_dev?replicaSet=chatapp-rs&directConnection=true\nHOST=127.0.0.1\nPORT=3000\nNODE_ENV=development\nCORS_ORIGINS=\nAUTH_SIGNING_KEY=\nAUTH_ISSUER=chatapp-api\nS3_ENDPOINT=\nS3_PUBLIC_ENDPOINT=\nS3_BUCKET=\nS3_REGION=us-east-1\nS3_ACCESS_KEY_ID=\nS3_SECRET_ACCESS_KEY=\nS3_MAX_UPLOAD_BYTES=10485760';
 const mobileExample =
   'EXPO_PUBLIC_API_BASE_URL=https://api.example.com\nEXPO_PUBLIC_ALLOW_LOCAL_HTTP=false';
 
@@ -48,7 +48,7 @@ async function verifyOutput(directory) {
     } else if (/\.(?:js|hbc|json|map)$/.test(entry.name)) {
       const emitted = await readFile(path, 'utf8');
       assert.ok(
-        !/CHATAPP_SERVER_ONLY_CANARY|mongodb(?:\+srv)?:\/\/|DATABASE_URL|AUTH_SIGNING_KEY|CHATAPP_AUTH_KEY_CANARY|@prisma\/client|EXPO_PUBLIC_[A-Z0-9_]*(?:SECRET|TOKEN|DATABASE|PRISMA)/.test(
+        !/CHATAPP_SERVER_ONLY_CANARY|mongodb(?:\+srv)?:\/\/|DATABASE_URL|AUTH_SIGNING_KEY|CHATAPP_AUTH_KEY_CANARY|CHATAPP_STORAGE_CANARY|S3_ACCESS_KEY_ID|S3_SECRET_ACCESS_KEY|@aws-sdk\/client-s3|@prisma\/client|EXPO_PUBLIC_[A-Z0-9_]*(?:SECRET|TOKEN|DATABASE|PRISMA)/.test(
           emitted,
         ),
         `Server configuration found in ${path}`,

@@ -20,7 +20,6 @@ export async function createApplication(environment: ApiEnvironment) {
   );
   app.disable('x-powered-by');
   app.use(requestLogging);
-  app.useBodyParser('json', { limit: '24kb' });
   app.use(
     ['/v1/auth', '/v1/users', '/v1/conversations'],
     (_request: Request, response: Response, next: NextFunction) => {
@@ -28,6 +27,7 @@ export async function createApplication(environment: ApiEnvironment) {
       next();
     },
   );
+  app.useBodyParser('json', { limit: '24kb' });
   app.enableVersioning({ type: VersioningType.URI });
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalPipes(
