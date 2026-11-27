@@ -85,7 +85,7 @@ export function NewConversationScreen() {
           );
         }}
       />
-      {error && <RequestError message={error} />}
+      {!!error && <RequestError message={error} />}
       <AppButton
         label={group ? 'Create group' : 'Open conversation'}
         disabled={!selected.length || (group && !title.trim())}

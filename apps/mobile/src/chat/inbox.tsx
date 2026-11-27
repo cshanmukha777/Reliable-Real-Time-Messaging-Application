@@ -272,9 +272,9 @@ export function InboxScreen({
           <ConversationRow conversation={item} onOpen={onOpen} />
         )}
         {...(onRefresh && { onRefresh, refreshing })}
-        ListFooterComponent={<>{listFooter}</>}
+        ListFooterComponent={<View>{listFooter}</View>}
         ListEmptyComponent={
-          <>
+          <View>
             {emptyOverride ??
               (term ? (
                 <EmptyState
@@ -307,7 +307,7 @@ export function InboxScreen({
                   })}
                 />
               ))}
-          </>
+          </View>
         }
       />
     </AppScreen>

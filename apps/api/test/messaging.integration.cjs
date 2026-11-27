@@ -187,6 +187,13 @@ test(
     assert.deepEqual(await request('users/discover?q=ada', ada), []);
     await request('users/discover?q=be', null, 'GET', undefined, 401);
     await request('conversations', null, 'GET', undefined, 401);
+    await request(
+      'conversations/group',
+      ada,
+      'POST',
+      { title: 'x'.repeat(26000) },
+      413,
+    );
     await request('users/discover?q=b', ada, 'GET', undefined, 400);
     for (let i = 0; i < 28; i++) await request('users/discover?q=be', ada);
     await request('users/discover?q=be', ada, 'GET', undefined, 429);
@@ -435,6 +442,15 @@ test(
         body: text,
       });
       assert.equal(bad.status, 403);
+      const wrongLength = await fetch(grant.url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'text/plain',
+          'Content-Length': String(text.length - 1),
+        },
+        body: text.subarray(1),
+      });
+      assert.equal(wrongLength.status, 403);
       const uploaded = await fetch(grant.url, {
         method: 'PUT',
         headers: grant.headers,
@@ -443,6 +459,14 @@ test(
       assert.equal(uploaded.status, 200, await uploaded.text());
     } else uploads.set(new URL(grant.url).pathname.slice(1), text);
     assert.equal((await request(completion, ada, 'POST')).id, aId);
+    if (endpoint) {
+      const overwritten = await fetch(grant.url, {
+        method: 'PUT',
+        headers: grant.headers,
+        body: Buffer.alloc(text.length, 'x'),
+      });
+      assert.equal(overwritten.status, 200, await overwritten.text());
+    }
     await send(id, ben, '', randomUUID(), [aId], 404);
     await send(direct.id, ada, '', randomUUID(), [aId], 404);
     const file = await send(id, ada, '', randomUUID(), [aId]);

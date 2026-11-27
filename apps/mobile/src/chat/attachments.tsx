@@ -37,9 +37,17 @@ export function AttachmentPreview({
       : Math.round(Math.max(0, Math.min(100, progress)));
   const metadata = (
     <View style={styles.metadata}>
-      <Icon
-        name={attachment.image || attachment.photo ? 'Image' : 'FileText'}
-      />
+      {compact && attachment.image ? (
+        <Image
+          source={attachment.image.source}
+          accessibilityLabel={attachment.image.description}
+          style={styles.thumbnail}
+        />
+      ) : (
+        <Icon
+          name={attachment.image || attachment.photo ? 'Image' : 'FileText'}
+        />
+      )}
       <View style={styles.metadataText}>
         <AppText variant="caption" numberOfLines={2}>
           {attachment.name}
@@ -128,6 +136,11 @@ const styles = StyleSheet.create({
   fileRow: { flexDirection: 'row', alignItems: 'center' },
   fill: { flex: 1, minWidth: 0 },
   photoFrame: { width: '100%', aspectRatio: 2.05, overflow: 'hidden' },
+  thumbnail: {
+    width: space.touch,
+    height: space.touch,
+    borderRadius: radius.small,
+  },
   photoFill: { width: '100%', height: '100%' },
   metadata: {
     minHeight: space.touch,

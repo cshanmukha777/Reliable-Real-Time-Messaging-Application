@@ -314,7 +314,12 @@ export function ConnectedThread({ id }: { id: string }) {
             attachment: {
               name: file.input.fileName,
               detail: fileSize(file.input.size),
-              photo: file.input.mimeType.startsWith('image/'),
+              ...(file.input.mimeType.startsWith('image/') && {
+                image: {
+                  source: { uri: file.uri },
+                  description: file.input.fileName,
+                },
+              }),
             },
           }),
         }}

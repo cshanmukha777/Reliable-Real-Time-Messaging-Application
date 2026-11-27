@@ -77,7 +77,7 @@ export function PeoplePicker({
         disabled={disabled || !discoverySchema.safeParse({ q: query }).success}
         onPress={() => void search()}
       />
-      {error && <RequestError message={error} />}
+      {!!error && <RequestError message={error} />}
       {selected.length > 0 && (
         <View style={styles.people}>
           <AppText variant="section">Selected</AppText>

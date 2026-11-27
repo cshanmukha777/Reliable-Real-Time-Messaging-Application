@@ -79,8 +79,8 @@ export function MembersScreen({ id }: { id: string }) {
   return (
     <MessagingScreen title={row?.title ?? 'Members'}>
       {waiting && !row && <LoadingState label="Loading members…" />}
-      {error && <RequestError message={error} />}
-      {error && !row && (
+      {!!error && <RequestError message={error} />}
+      {!!error && !row && (
         <AppButton
           kind="secondary"
           label="Try again"

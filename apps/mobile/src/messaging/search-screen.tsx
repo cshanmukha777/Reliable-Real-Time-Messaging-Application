@@ -71,7 +71,7 @@ export function SearchScreen({ id }: { id: string }) {
         disabled={!valid.success}
         onPress={() => void search()}
       />
-      {error && <RequestError message={error} />}
+      {!!error && <RequestError message={error} />}
       {loading && !results && <LoadingState label="Searching messages…" />}
       {!loading && results?.length === 0 && (
         <EmptyState

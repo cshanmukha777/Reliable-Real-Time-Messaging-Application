@@ -245,3 +245,34 @@ test('switching accounts on one device yields a fresh account scope and credenti
     initialScope,
   );
 });
+
+test('background token rotation preserves authenticated routes and retries transient loss', async () => {
+  const { store } = vault();
+  const first = response();
+  const next = response();
+  let callable = false;
+  const manager = new SessionManager(
+    origin,
+    {
+      login: async () => first,
+      refresh: async () => {
+        if (!callable) throw new Error('network unavailable');
+        return next;
+      },
+    },
+    store,
+    random,
+  );
+  await manager.restore();
+  await manager.signIn({ email: account.email, password: random() });
+  const changing = manager.refresh();
+  assert.equal(sessionRoutes(manager.snapshot().phase).signedIn, true);
+  await assert.rejects(changing);
+  assert.equal(sessionRoutes(manager.snapshot().phase).signedIn, true);
+  callable = true;
+  assert.equal(
+    await manager.authorized(async (token) => token),
+    next.accessToken,
+  );
+  assert.equal(sessionRoutes(manager.snapshot().phase).signedIn, true);
+});
