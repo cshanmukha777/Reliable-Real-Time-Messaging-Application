@@ -96,7 +96,7 @@ export class Messages {
       ] }),
     };
     const hits = await tx.message.findRaw({ filter, options: {
-      projection: { _id: 1 }, sort: { createdAt: -1, _id: -1 }, limit, maxTimeMS: 1500,
+      projection: { _id: 1 }, sort: { createdAt: -1, _id: -1 }, limit, maxTimeMS: { secs: 1, nanos: 500000000 },
     } });
     if (!Array.isArray(hits)) throw new Error('Unexpected search result');
     const ids = hits.map((hit) => mongoIdSchema.parse(hit._id?.$oid));
