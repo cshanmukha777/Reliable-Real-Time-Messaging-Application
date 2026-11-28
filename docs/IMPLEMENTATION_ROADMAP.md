@@ -29,3 +29,8 @@ Stage 2 enters after review of this documentation and agreement on the platform 
 6. **Migration disposition.** Record whether Supabase data exists and who owns any export/cutover. The new scaffold has one configured backend. Keep the Stage 2 PR limited to foundation and verification.
 
 Archive the first-stage evidence with the PR. Auth, application UI and messaging implementation begin only in their designated stages.
+
+
+## Stage 7 implementation reference
+
+See the [Stage 7 handoff](STAGE_7_IMPLEMENTATION.md) for rollout order, known deployment limits and the Stage 8 entry checklist.

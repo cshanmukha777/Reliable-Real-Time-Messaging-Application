@@ -8,3 +8,11 @@ OpenAI Codex assisted with reading the repository, drafting Stage 5 code and doc
 - **What did I change or reject?** Describe a suggested approach, what you changed and why.
 - **What did I learn?** Explain one design decision such as membership visibility, duplicate-send handling or private signed transfers in your own words.
 - **What did I verify independently?** List the commands or device steps you personally ran, the result and any remaining limits.
+
+## Stage 7
+
+Codex helped implement and test the Stage 7 event log, gateway, replay, receipts and app integration. Automated results, capture method and device limitations are recorded in [test evidence](TEST_EVIDENCE.md#stage-7-verification). Complete this personal reflection with your own observations.
+
+- What Stage 7 design trade-off did I understand or change?
+- Which real device or automated scenario did I personally verify?
+- What remains to be measured, and how would I test it in Stage 8?

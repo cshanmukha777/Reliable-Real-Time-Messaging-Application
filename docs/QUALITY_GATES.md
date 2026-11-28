@@ -42,3 +42,8 @@ Initial capstone targets for Stage 8. Use a seeded staging environment with a do
 | Duplicate/data loss invariant | Zero duplicate canonical messages and zero lost accepted items over 100 controlled timeout/retry sequences. Compare SQLite, API and MongoDB identities. |
 
 Treat mobile background suspension, push notifications, general-purpose browser support, end-to-end encryption and multi-region delivery as separate scope decisions. Benchmarks cover the supported foreground transport and describe device/network constraints.
+
+
+## Stage 7 release evidence
+
+Run the real MongoDB/Socket.IO integration suite and account SQLite tests. Collect the two-device native gate separately, including inactive/foreground visibility for read acknowledgments. Bundle exports and a harness screenshot establish build and protocol evidence. Physical or simulator interactions remain a separate gate.

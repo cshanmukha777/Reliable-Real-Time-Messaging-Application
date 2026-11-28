@@ -10,3 +10,11 @@
 8. Explain the boundary for rejected or uncertain sends. The current draft survives a failure while the conversation remains mounted. Refreshing or reopening another client fetches server state through REST.
 
 Record device, OS version, build type, commit, test accounts by role and observed results. Capture evidence only after the action. Keep access tokens and signed object URLs out of screenshots.
+
+## Stage 7 demonstration
+
+1. Sign in with two distinct accounts in development builds. Open the same conversation. Send a message and observe the second device show it without manual refresh.
+2. Watch delivered advance after the recipient persists it. Bring the recipient’s conversation into view to move to read. Use a group to show eligible counts.
+3. Connect a second device to the recipient account. Disconnect one device, verify the account stays online, then disconnect the last one.
+4. Send another message while the recipient is disconnected. Reconnect and confirm replay. Delete a message and remove a member. Observe the tombstone and revoked cache respectively.
+5. Repeat with a queued offline send, an account switch, an app background or foreground transition, and a force-close. Track cursors and the original operation UUID without capturing credentials.
