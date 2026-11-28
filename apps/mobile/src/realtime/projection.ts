@@ -55,6 +55,7 @@ export class RealtimeProjection {
       await this.membership(tx,membership);
       await this.store.cacheConversation(tx,conversation);
       if(!older) {
+        this.store.invalidateReads();
         await tx.run('DELETE FROM messages WHERE conversation_id=? AND server_id IS NOT NULL',id);
         await tx.run('DELETE FROM receipt_projection WHERE conversation_id=?',id);
       }

@@ -6,13 +6,17 @@ import type { ApiEnvironment } from '../config/environment';
 
 export function allowUpgrade(environment:Pick<ApiEnvironment,'NODE_ENV'|'CORS_ORIGINS'>, request:IncomingMessage) {
   const origin = request.headers.origin;
-  if (origin && !environment.CORS_ORIGINS.includes(origin)) return false;
-  if (environment.NODE_ENV !== 'production') return true;
-  if (origin && !origin.startsWith('https://')) return false;
   const peer=request.socket.remoteAddress;
   const loopback=peer==='127.0.0.1'||peer==='::1'||peer==='::ffff:127.0.0.1';
-  return ('encrypted' in request.socket && request.socket.encrypted === true) ||
+  const secure=('encrypted' in request.socket && request.socket.encrypted === true) ||
     (loopback && request.headers['x-forwarded-proto']==='https');
+  if (environment.NODE_ENV==='production' && !secure) return false;
+  if(!origin)return true;
+  if (environment.NODE_ENV==='production' && !origin.startsWith('https://')) return false;
+  // React Native supplies an HTTP(S) Origin derived from its WebSocket URL.
+  const host=request.headers.host;
+  const sameOrigin=host ? `${secure?'https':'http'}://${host}` : null;
+  return origin===sameOrigin || environment.CORS_ORIGINS.includes(origin);
 }
 
 export class RealtimeAdapter extends IoAdapter {
@@ -20,6 +24,7 @@ export class RealtimeAdapter extends IoAdapter {
   override createIOServer(port:number,options?:ServerOptions) {
     return super.createIOServer(port,{
       ...options,
+      serveClient:false,
       transports:['websocket'],
       maxHttpBufferSize:8192,
       pingInterval:20_000,pingTimeout:12_000,

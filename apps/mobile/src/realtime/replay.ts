@@ -11,6 +11,7 @@ export class ReplayEngine {
   private readonly api:Transport;
   private readonly userId:string;
   private accountDirty=false;
+  private accountTarget=0;
   private targets=new Map<string,number>();
   private flight?:Promise<void>;
 
@@ -22,7 +23,7 @@ export class ReplayEngine {
 
   hint(hint:Availability) {
     if(hint.stream==='ACCOUNT') {
-      if(hint.streamId===this.userId)this.probe();
+      if(hint.streamId===this.userId)this.accountTarget=Math.max(this.accountTarget,hint.highWater);
       return;
     }
     // Active membership is still checked against the durable account projection.
@@ -31,7 +32,7 @@ export class ReplayEngine {
   }
 
   async run(signal:AbortSignal, eligible:Access) {
-    if(this.flight) await this.flight;
+    if(this.flight) return this.flight;
     if(signal.aborted || !eligible())return;
     const current=()=>!signal.aborted && eligible();
     const work=this.drain(signal,current).finally(()=>{if(this.flight===work)delete this.flight;});
@@ -41,12 +42,18 @@ export class ReplayEngine {
 
   private async drain(signal:AbortSignal,current:Access) {
     while(current()){
-      if(this.accountDirty){
+      const accountCursor=(await this.projection.cursor('ACCOUNT',this.userId))?.cursor ?? -1;
+      if(this.accountDirty || accountCursor<this.accountTarget){
         this.accountDirty=false;
         try{await this.pullAccount(signal,current);}catch(error){this.probe();throw error;}
       }
       if(!current())return;
       const threads=await this.projection.conversations();
+      const known=new Map(threads.map((row)=>[row.id,row.cursor]));
+      for(const [id,hint] of this.targets) {
+        const cursor=known.get(id);
+        if(cursor===undefined || cursor>=hint)this.targets.delete(id);
+      }
       const thread=threads.find((row)=>row.cursor<Math.max(row.high_water,this.targets.get(row.id)??0));
       if(thread){
         this.targets.delete(thread.id);

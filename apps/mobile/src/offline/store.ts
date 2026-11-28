@@ -69,6 +69,10 @@ export class OfflineStore {
     for (const callback of this.listeners) callback();
   }
 
+  invalidateReads() {
+    this.accessVersion++;
+  }
+
   membershipRevision() {
     return this.accessVersion;
   }
