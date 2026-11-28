@@ -3,7 +3,7 @@ import type { Conversation, Membership, Message, RealtimeEvent, RealtimeStream }
 import type { MembershipView, ReceiptStage, RealtimeMessage, ReplayEntry, ReplayPage } from '@chatapp/contracts';
 import { Conversations } from '../messaging/conversations.service';
 import { Messages } from '../messaging/messages.service';
-import { encodeCursor } from '../messaging/policy';
+import { decodeCursor, encodeCursor } from '../messaging/policy';
 import { MessagingRepository, type MessagingDb } from '../messaging/repository';
 import { appendChange } from './events';
 
@@ -62,12 +62,16 @@ export class SyncService {
     });
   }
 
-  conversationSnapshot(userId: string, id: string) {
+  conversationSnapshot(userId: string, id: string, older?: string) {
+    const cursor=decodeCursor(older);
     return this.repository.atomic(async (tx)=>{
       const member=await this.repository.membership(tx,id,userId);
       const row=await tx.conversation.findUniqueOrThrow({where:{id}});
       const messages=await tx.message.findMany({
-        where:{conversationId:id,sequence:{gte:member.visibleFrom},deletedAt:null},
+        where:{conversationId:id,sequence:{gte:member.visibleFrom},deletedAt:null,...(cursor&&{OR:[
+          {createdAt:{lt:cursor.createdAt}},
+          {createdAt:cursor.createdAt,id:{lt:cursor.id}},
+        ]})},
         orderBy:[{createdAt:'desc'},{id:'desc'}],take:51,
       });
       const page=messages.slice(0,50);

@@ -1,5 +1,5 @@
 import { BadRequestException, Controller, Get, HttpCode, HttpException, Injectable, Param, Post, Body, Query, UseGuards } from '@nestjs/common';
-import { accountSnapshotQuerySchema, API_VERSION, mongoIdSchema, receiptInputSchema, replayQuerySchema, type Account } from '@chatapp/contracts';
+import { accountSnapshotQuerySchema, API_VERSION, mongoIdSchema, pageQuerySchema, receiptInputSchema, replayQuerySchema, type Account } from '@chatapp/contracts';
 import type { ZodType } from 'zod';
 import { AccessTokenGuard, CurrentAccount } from '../auth/auth.guard';
 import { SyncService } from './sync.service';
@@ -51,9 +51,9 @@ export class SyncController {
   }
 
   @Get('conversations/:id/events/snapshot')
-  snapshot(@CurrentAccount() user:Account,@Param('id') id:string) {
+  snapshot(@CurrentAccount() user:Account,@Param('id') id:string,@Query() query:unknown) {
     this.throttle.check(user.id);
-    return this.sync.conversationSnapshot(user.id,parse(mongoIdSchema,id));
+    return this.sync.conversationSnapshot(user.id,parse(mongoIdSchema,id),parse(pageQuerySchema,query).cursor);
   }
 
   @Post('conversations/:id/messages/:message/receipt')

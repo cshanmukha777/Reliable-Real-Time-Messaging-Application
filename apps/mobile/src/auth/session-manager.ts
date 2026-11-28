@@ -55,6 +55,7 @@ export class SessionManager {
   private closing = false;
   private logoutRequired = false;
   private active = false;
+  private tokenGeneration = 0;
   private timer: ReturnType<typeof setTimeout> | undefined;
 
   readonly origin: string;
@@ -212,6 +213,7 @@ export class SessionManager {
     this.saved = stored;
     if (this.closing) return;
     this.access = { token: result.accessToken, expires };
+    this.tokenGeneration++;
     this.publish({ phase: 'authenticated', user: result.user });
     this.schedule();
   }
@@ -315,6 +317,12 @@ export class SessionManager {
     )
       void this.refresh().catch(() => undefined);
   }
+
+  socketAuthentication() {
+    return this.authorized(async(token)=>({token,generation:this.tokenGeneration}));
+  }
+
+  accessGeneration() {return this.tokenGeneration;}
 
   async authorized<T>(request: (access: string) => Promise<T>): Promise<T> {
     if (this.closing) throw new Error('Session is closing.');
