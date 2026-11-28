@@ -49,6 +49,8 @@ export function ConnectedThread({ id }: { id: string }) {
   const [opened, setOpened] = useState<OpenedFile | null>(null);
   const [sendError, setSendError] = useState('');
   const busy = useRef(false);
+  const editRevision = useRef(0);
+  const [savingDraft, setSavingDraft] = useState(false);
   const epoch = useRef(0);
   const alive = useRef(true);
 
@@ -157,8 +159,16 @@ export function ConnectedThread({ id }: { id: string }) {
 
   function edit(next: Draft) {
     setDraft(next);
-    drafts.edit(id, next);
+    const revision = ++editRevision.current;
+    setSavingDraft(true);
     setSendError('');
+    void drafts.edit(id, next).then(
+      () => { if (alive.current && editRevision.current === revision) setSavingDraft(false); },
+      () => { if (alive.current && editRevision.current === revision) {
+        setSavingDraft(false);
+        setSendError('Draft is not saved. Edit again or retry sending.');
+      } },
+    );
   }
 
   async function send() {
@@ -388,6 +398,7 @@ export function ConnectedThread({ id }: { id: string }) {
                 detail="Start the conversation with a message."
               />
             )}
+            {savingDraft && <AppText variant="caption" accessibilityLiveRegion="polite">Saving draft…</AppText>}
             {!!actionError && <RequestError message={actionError} />}
             {openingFile && (
               <AppText variant="caption" accessibilityLiveRegion="polite">

@@ -479,3 +479,19 @@ test('a late history or inbox response cannot restore content after a known revo
     await store.db.close();
   }
 });
+
+test('the latest acknowledged draft edit survives an immediate process kill', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'chatapp-draft-kill-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, 'account.db');
+  const before = await setup(path);
+  const operation = await queued(before);
+  await before.db.close();
+  const child = spawnSync(process.execPath, [join(__dirname, 'offline-restart.cjs'), path, thread, operation, 'draft-kill']);
+  assert.equal(child.signal, 'SIGKILL');
+  const after = await setup(path);
+  try {
+    assert.equal((await after.getDraft(thread)).body, 'Just committed edit');
+    assert.equal((await after.thread(thread)).rows[0].message.body, 'Saved locally');
+  } finally { await after.db.close(); }
+});

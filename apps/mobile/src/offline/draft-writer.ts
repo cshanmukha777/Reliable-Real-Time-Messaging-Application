@@ -1,6 +1,7 @@
 import type { Draft, OfflineStore } from './store.ts';
 
-type Pending = { draft: Draft; timer: ReturnType<typeof setTimeout> };
+type Pending = { draft: Draft; write: Promise<void>; failed: boolean };
+
 export class DraftWriter {
   private readonly store: OfflineStore;
   private readonly onError: () => void;
@@ -12,20 +13,24 @@ export class DraftWriter {
   }
 
   edit(id: string, draft: Draft) {
-    clearTimeout(this.pending.get(id)?.timer);
-    const timer = setTimeout(() => {
-      void this.flush(id).catch(this.onError);
-    }, 180);
-    this.pending.set(id, { draft, timer });
+    const prior = this.pending.get(id);
+    const write = (prior?.write.catch(() => undefined) ?? Promise.resolve())
+      .then(() => this.store.saveDraft(id, draft));
+    const pending = { draft, write, failed: false };
+    this.pending.set(id, pending);
+    void write.then(
+      () => { if (this.pending.get(id) === pending) this.pending.delete(id); },
+      () => { pending.failed = true; this.onError(); },
+    );
+    return write;
   }
 
   async flush(id: string) {
-    const pending = this.pending.get(id);
-    if (!pending) return;
-    clearTimeout(pending.timer);
-    // Leave the latest revision in memory until its transaction commits.
-    await this.store.saveDraft(id, pending.draft);
-    if (this.pending.get(id) === pending) this.pending.delete(id);
+    while (this.pending.has(id)) {
+      const pending = this.pending.get(id);
+      if (!pending) break;
+      await (pending.failed ? this.edit(id, pending.draft) : pending.write);
+    }
   }
 
   async flushAll() {
