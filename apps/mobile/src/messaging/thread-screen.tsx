@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Alert, Image, Modal, StyleSheet, View } from 'react-native';
+import { Alert, AppState, Image, Modal, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { randomUUID } from 'expo-crypto';
 import type { Attachment, Conversation } from '@chatapp/contracts';
@@ -30,6 +30,7 @@ export function ConnectedThread({ id }: { id: string }) {
     drafts,
     files,
     worker,
+    realtime,
     version,
     progress,
     storageError,
@@ -39,6 +40,7 @@ export function ConnectedThread({ id }: { id: string }) {
   const [locals, setLocals] = useState<LocalMessage[]>([]);
   const [active, setActive] = useState(true);
   const [ready, setReady] = useState(false);
+  const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -49,8 +51,11 @@ export function ConnectedThread({ id }: { id: string }) {
   const [opened, setOpened] = useState<OpenedFile | null>(null);
   const [sendError, setSendError] = useState('');
   const busy = useRef(false);
+  const editRevision = useRef(0);
+  const [savingDraft, setSavingDraft] = useState(false);
   const epoch = useRef(0);
   const alive = useRef(true);
+  const focused = useRef(false);
 
   useEffect(() => {
     alive.current = true;
@@ -155,10 +160,59 @@ export function ConnectedThread({ id }: { id: string }) {
     }, [load, drafts, id]),
   );
 
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true;
+      const leave = realtime.watch(id);
+      return () => {
+        focused.current = false;
+        leave();
+      };
+    }, [id, realtime]),
+  );
+
+  useEffect(() => {
+    let current = true;
+    void realtime
+      .historyCursor(id)
+      .then((older) => {
+        if (current) setOlderCursor(older ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [id, realtime, version]);
+
+  const onVisible = useCallback(
+    (ids: string[]) => {
+      realtime.visible(
+        id,
+        ids,
+        () => focused.current && AppState.currentState === 'active',
+      );
+    },
+    [id, realtime],
+  );
+
   function edit(next: Draft) {
     setDraft(next);
-    drafts.edit(id, next);
+    realtime.compose(id, Boolean(next.body.trim()));
+    const revision = ++editRevision.current;
+    setSavingDraft(true);
     setSendError('');
+    void drafts.edit(id, next).then(
+      () => {
+        if (alive.current && editRevision.current === revision)
+          setSavingDraft(false);
+      },
+      () => {
+        if (alive.current && editRevision.current === revision) {
+          setSavingDraft(false);
+          setSendError('Draft is not saved. Edit again or retry sending.');
+        }
+      },
+    );
   }
 
   async function send() {
@@ -178,6 +232,7 @@ export function ConnectedThread({ id }: { id: string }) {
     try {
       await drafts.flush(id);
       await store.enqueue(id, randomUUID(), person);
+      realtime.compose(id, false);
       setDraft({ body: '', file: null });
       worker.wake();
     } catch {
@@ -276,7 +331,23 @@ export function ConnectedThread({ id }: { id: string }) {
   ).map((entry) => {
     if ('divider' in entry) return entry;
     const local = byId.get(entry.id);
-    if (!local?.state || local.state === 'CONFIRMED') return entry;
+    if (!local?.state || local.state === 'CONFIRMED') {
+      const receipt = local?.receipt;
+      if (entry.direction !== 'outgoing' || !receipt?.eligible) return entry;
+      const status =
+        receipt.read === receipt.eligible
+          ? 'read'
+          : receipt.delivered === receipt.eligible
+            ? 'delivered'
+            : 'sent';
+      return {
+        ...entry,
+        status,
+        ...(group && {
+          stateDetail: `Delivered ${receipt.delivered} of ${receipt.eligible} · Read ${receipt.read} of ${receipt.eligible}`,
+        }),
+      };
+    }
     const failed = ['FAILED', 'BLOCKED_AUTH', 'BLOCKED_ACCESS'].includes(
       local.state,
     );
@@ -306,19 +377,39 @@ export function ConnectedThread({ id }: { id: string }) {
     };
   });
   const file = draft.file;
+  const online = realtime.presence(id);
+  const typingId = [...(realtime.typing(id) ?? [])].find(
+    (userId) => userId !== accountScope.userId,
+  );
+  const typingName = conversation.members.find(
+    (member) => member.id === typingId,
+  )?.displayName;
+  const connection = realtime.status();
+  const older = olderCursor ?? cursor;
   return (
     <>
       <ThreadScreen
         name={conversation.title}
         subtitle={
           group
-            ? `${conversation.members.length} members`
-            : 'Direct conversation'
+            ? `${conversation.members.length} members${online ? ` · ${online.size} online` : ''}`
+            : conversation.members.some(
+                  (member) =>
+                    member.id !== accountScope.userId && online?.has(member.id),
+                )
+              ? 'Online'
+              : 'Direct conversation'
         }
         people={conversationPeople(conversation, accountScope.userId)}
         group={group}
         entries={entries}
-        offline={!!loadError && active}
+        offline={connection === 'offline' && active && !!loadError}
+        online={conversation.members.some(
+          (member) =>
+            member.id !== accountScope.userId && online?.has(member.id),
+        )}
+        {...(active && typingName && { typing: typingName })}
+        onVisible={onVisible}
         onRetry={(operation) => {
           void store
             .retry(operation, Date.now())
@@ -364,14 +455,25 @@ export function ConnectedThread({ id }: { id: string }) {
               icon="RotateCcw"
               label="Refresh"
               disabled={loading || sending}
-              onPress={() => void load()}
+              onPress={() => {
+                realtime.retry();
+                void load();
+              }}
             />
-            {cursor && (
+            {older && (
               <AppButton
                 kind="quiet"
                 label="Older messages"
                 disabled={loading || sending}
-                onPress={() => void load(cursor)}
+                onPress={() => {
+                  if (olderCursor)
+                    void realtime
+                      .older(id, olderCursor)
+                      .catch(() =>
+                        setActionError('Couldn’t load older messages.'),
+                      );
+                  else void load(older);
+                }}
               />
             )}
           </View>
@@ -387,6 +489,20 @@ export function ConnectedThread({ id }: { id: string }) {
                 title="No messages yet"
                 detail="Start the conversation with a message."
               />
+            )}
+            {connection !== 'live' && active && (
+              <AppText variant="caption" accessibilityLiveRegion="polite">
+                {connection === 'replaying'
+                  ? 'Syncing messages…'
+                  : connection === 'offline'
+                    ? 'Live updates paused'
+                    : 'Reconnecting live updates…'}
+              </AppText>
+            )}
+            {savingDraft && (
+              <AppText variant="caption" accessibilityLiveRegion="polite">
+                Saving draft…
+              </AppText>
             )}
             {!!actionError && <RequestError message={actionError} />}
             {openingFile && (

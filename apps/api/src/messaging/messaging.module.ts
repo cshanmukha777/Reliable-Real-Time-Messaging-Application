@@ -23,5 +23,6 @@ import { MessagingUsers } from './users.service';
     Attachments,
     AttachmentStorage,
   ],
+  exports: [Conversations, Messages, MessagingRepository],
 })
 export class MessagingModule {}

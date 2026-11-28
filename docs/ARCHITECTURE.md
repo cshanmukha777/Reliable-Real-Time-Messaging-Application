@@ -59,3 +59,8 @@ For group messages, the aggregate states apply to eligible send-time recipients 
 Use TLS, segregated environment secrets, strict payload validation, request IDs, redacted structured logs and health/readiness endpoints. Hash passwords with Argon2id using measured parameters. Apply limits to login, sync, typing and file size, configure an explicit origin allowlist where applicable, and keep MongoDB and storage credentials server-side. Track outbox age, duplicate replay counts, socket reconnects, sync lag and upload failures. Exclude message bodies, credentials and signed URLs from telemetry. Stage 8 verifies rate limits, storage policies, backup/restore and release builds. Stage 10 owns signed/notarized macOS distribution where credentials are available.
 
 References: [Prisma MongoDB connector](https://www.prisma.io/docs/orm/v6/overview/databases/mongodb), [NestJS gateways](https://docs.nestjs.com/websockets/gateways), [Socket.IO delivery guarantees](https://socket.io/docs/v4/delivery-guarantees/), [Expo SQLite](https://docs.expo.dev/versions/latest/sdk/sqlite/) and [Expo SecureStore](https://docs.expo.dev/versions/latest/sdk/securestore/).
+
+
+## Stage 7 implementation
+
+The [real-time architecture](REALTIME_ARCHITECTURE.md) documents the implemented transactional event log, scoped Socket.IO hints, authenticated replay and atomic SQLite projection. The initial deployment uses a single API instance and the [count-based retention policy](EVENT_REPLAY_AND_RETENTION.md).

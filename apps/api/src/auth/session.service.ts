@@ -28,6 +28,23 @@ type SessionRow = Prisma.SessionGetPayload<{ select: typeof sessionSelection }>;
 
 @Injectable()
 export class SessionService {
+  private readonly listeners = new Set<
+    (scope: { userId?: string; sessionId?: string }) => void
+  >();
+
+  onRevoked(
+    listener: (scope: { userId?: string; sessionId?: string }) => void,
+  ) {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
+  private notify(scope: { userId?: string; sessionId?: string }) {
+    for (const listener of this.listeners) listener(scope);
+  }
+
   constructor(
     private readonly repository: AuthRepository,
     private readonly tokens: TokenService,
@@ -116,6 +133,7 @@ export class SessionService {
           where: { id: session.id, revokedAt: null },
           data: { revokedAt: new Date() },
         });
+        this.notify({ sessionId: session.id });
         throw new UnauthorizedException();
       }
 
@@ -167,11 +185,13 @@ export class SessionService {
           select: { sessionId: true },
         })
       )?.sessionId;
-    if (id)
+    if (id) {
       await db.session.updateMany({
         where: { id, revokedAt: null },
         data: { revokedAt: new Date() },
       });
+      this.notify({ sessionId: id });
+    }
   }
 
   async revokeAll(userId: string) {
@@ -179,5 +199,6 @@ export class SessionService {
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
+    this.notify({ userId });
   }
 }

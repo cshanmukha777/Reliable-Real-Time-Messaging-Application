@@ -86,6 +86,7 @@ enum MemberRole {
 model Conversation {
   id          String           @id @default(auto()) @map("_id") @db.ObjectId
   identityKey String           @unique
+  eventSequence Int?
   fingerprint String
   kind        ConversationKind
   title       String?
@@ -105,6 +106,7 @@ model Membership {
   role           MemberRole
   active         Boolean
   visibleFrom    Int
+  eventVisibleFrom Int?
 
   @@unique([conversationId, userId])
   @@index([userId, active, conversationId])
@@ -150,4 +152,51 @@ model Attachment {
 
   @@index([ownerId, state, expiresAt])
   @@map("attachments")
+}
+
+enum RealtimeStream {
+  ACCOUNT
+  CONVERSATION
+}
+
+model AccountSyncState {
+  id       String @id @map("_id") @db.ObjectId
+  sequence Int
+  @@map("account_sync_state")
+}
+
+model RealtimeEvent {
+  id              String         @id @default(auto()) @map("_id") @db.ObjectId
+  stream          RealtimeStream
+  streamId        String         @db.ObjectId
+  sequence        Int
+  type            String
+  conversationId  String         @db.ObjectId
+  messageId       String?        @db.ObjectId
+  messageSequence Int?
+  affectedUserId  String?        @db.ObjectId
+  createdAt       DateTime
+  availableAt     DateTime
+  lease           String?
+  attempts        Int            @default(0)
+  publishedAt     DateTime?
+  @@unique([stream, streamId, sequence])
+  @@index([publishedAt, availableAt, createdAt, id])
+  @@map("realtime_events")
+}
+
+model Receipt {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  messageId      String   @db.ObjectId
+  conversationId String   @db.ObjectId
+  recipientId    String   @db.ObjectId
+  eligible       Boolean
+  deliveredAt    DateTime?
+  readAt         DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  @@unique([messageId, recipientId])
+  @@index([conversationId, recipientId, eligible])
+  @@index([messageId, eligible])
+  @@map("receipts")
 }

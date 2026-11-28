@@ -24,12 +24,15 @@ import { accountFiles } from './files';
 import { DraftWriter } from './draft-writer';
 import { OfflineStore } from './store';
 import { OutboxWorker } from './worker';
+import { RealtimeClient } from '../realtime/client';
+import { RealtimeProjection } from '../realtime/projection';
 
 type Services = {
   store: OfflineStore;
   drafts: DraftWriter;
   files: ReturnType<typeof accountFiles>;
   worker: OutboxWorker;
+  realtime: RealtimeClient;
   clean: () => Promise<void>;
   progress: (operation: string) => number | undefined;
   storageError: string;
@@ -76,6 +79,7 @@ function AccountData({
   useEffect(() => {
     let current = true;
     let foreground = AppState.currentState !== 'background';
+    let unsubscribe: (() => void) | undefined;
     let owned: Omit<Services, 'storageError'> | undefined;
     async function start() {
       const scope = scopeRef.current;
@@ -133,8 +137,16 @@ function AccountData({
           store.notify();
         },
       });
+      const realtime = new RealtimeClient(
+        manager,
+        api,
+        new RealtimeProjection(store),
+        eligible,
+        () => store.notify(),
+      );
       owned = {
         store,
+        realtime,
         files,
         drafts,
         worker,
@@ -145,6 +157,11 @@ function AccountData({
       if (!current) return;
       setServices(owned);
       worker.start();
+      realtime.start();
+      unsubscribe = manager.subscribe(() => {
+        if (eligible()) realtime.tokenChanged();
+        else realtime.stop();
+      });
       // Stage imports may be interrupted before the draft is committed.
       void clean()
         .then(async () => {
@@ -160,8 +177,11 @@ function AccountData({
 
     const events = AppState.addEventListener('change', (state) => {
       foreground = state === 'active';
-      if (foreground) owned?.worker.start();
-      else if (owned) {
+      if (foreground) {
+        owned?.worker.start();
+        owned?.realtime.start();
+      } else if (owned) {
+        owned.realtime.stop();
         void owned.worker.stop();
         void owned.drafts.flushAll().catch(() => undefined);
       }
@@ -172,10 +192,12 @@ function AccountData({
     return () => {
       current = false;
       events.remove();
+      unsubscribe?.();
       const currentServices = owned;
       if (currentServices) {
         void Promise.allSettled([
           currentServices.worker.stop(),
+          currentServices.realtime.close(),
           currentServices.drafts.flushAll(),
         ])
           .then(() => currentServices.store.db.close())

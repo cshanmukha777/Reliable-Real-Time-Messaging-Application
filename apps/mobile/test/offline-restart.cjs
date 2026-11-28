@@ -8,6 +8,12 @@ const [path, thread, operation, mode] = process.argv.slice(2);
   try {
     await migrate(db, true);
     const store = new OfflineStore(db, 'a'.repeat(24));
+    if (mode === 'draft-kill') {
+      const { DraftWriter } = require('../src/offline/draft-writer.ts');
+      const writer = new DraftWriter(store, () => {});
+      await writer.edit(thread, { body: 'Just committed edit', file: null });
+      process.kill(process.pid, 'SIGKILL');
+    }
     if (mode === 'crash') {
       await store.saveDraft(thread, { body: 'Independent draft', file: null });
       await store.claim('crashed lease', 1500000000000, 1500000000500);

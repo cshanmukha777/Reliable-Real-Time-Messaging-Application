@@ -4,6 +4,7 @@ import type { ApiEnvironment } from './config/environment';
 import { AuthModule } from './auth/auth.module';
 import { MessagingModule } from './messaging/messaging.module';
 import { HealthModule } from './health/health.module';
+import { RealtimeModule } from './realtime/realtime.module';
 
 @Module({})
 export class AppModule {
@@ -15,6 +16,7 @@ export class AppModule {
         HealthModule,
         AuthModule,
         MessagingModule,
+        RealtimeModule,
       ],
     };
   }

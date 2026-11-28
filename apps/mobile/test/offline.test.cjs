@@ -91,7 +91,7 @@ test('account schema upgrades in place and preserves existing preferences and di
     await probeRepository(db).create('before-upgrade');
     await migrate(db, true);
     await migrate(db, true);
-    assert.equal((await db.first('PRAGMA user_version')).user_version, 2);
+    assert.equal((await db.first('PRAGMA user_version')).user_version, 3);
     assert.equal((await db.first('PRAGMA foreign_keys')).foreign_keys, 1);
     assert.equal(await preferencesRepository(db).get('appearance'), 'dark');
     assert.equal(await probeRepository(db).exists('before-upgrade'), true);
@@ -477,5 +477,32 @@ test('a late history or inbox response cannot restore content after a known revo
     assert.equal(saved.conversation.latest, null);
   } finally {
     await store.db.close();
+  }
+});
+
+test('the latest acknowledged draft edit survives an immediate process kill', async (t) => {
+  const root = await mkdtemp(join(tmpdir(), 'chatapp-draft-kill-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const path = join(root, 'account.db');
+  const before = await setup(path);
+  const operation = await queued(before);
+  await before.db.close();
+  const child = spawnSync(process.execPath, [
+    join(__dirname, 'offline-restart.cjs'),
+    path,
+    thread,
+    operation,
+    'draft-kill',
+  ]);
+  assert.equal(child.signal, 'SIGKILL');
+  const after = await setup(path);
+  try {
+    assert.equal((await after.getDraft(thread)).body, 'Just committed edit');
+    assert.equal(
+      (await after.thread(thread)).rows[0].message.body,
+      'Saved locally',
+    );
+  } finally {
+    await after.db.close();
   }
 });

@@ -1,6 +1,10 @@
 import { retryDelay } from '../retry-after.ts';
 import {
   API_VERSION,
+  accountSnapshotSchema,
+  conversationSnapshotSchema,
+  replayPageSchema,
+  type ReceiptStage,
   attachmentSchema,
   conversationPageSchema,
   conversationSchema,
@@ -209,6 +213,67 @@ export class MessagingApi {
       signal,
     );
   }
+  accountEvents(after: number, signal: AbortSignal) {
+    return this.run(
+      'GET',
+      `sync/account?after=${after}`,
+      replayPageSchema,
+      undefined,
+      signal,
+    );
+  }
+
+  accountSnapshot(signal: AbortSignal, cursor?: string, watermark?: number) {
+    const query = new URLSearchParams({
+      limit: '50',
+      ...(cursor && { cursor }),
+      ...(watermark !== undefined && { watermark: String(watermark) }),
+    });
+    return this.run(
+      'GET',
+      `sync/account/snapshot?${query}`,
+      accountSnapshotSchema,
+      undefined,
+      signal,
+    );
+  }
+
+  conversationEvents(id: string, after: number, signal: AbortSignal) {
+    return this.run(
+      'GET',
+      `${thread(id)}/events?after=${after}`,
+      replayPageSchema,
+      undefined,
+      signal,
+    );
+  }
+
+  conversationSnapshot(id: string, signal: AbortSignal, older?: string) {
+    const query = older ? `?cursor=${encodeURIComponent(older)}` : '';
+    return this.run(
+      'GET',
+      `${thread(id)}/events/snapshot${query}`,
+      conversationSnapshotSchema,
+      undefined,
+      signal,
+    );
+  }
+
+  acknowledge(
+    id: string,
+    messageId: string,
+    stage: ReceiptStage,
+    signal: AbortSignal,
+  ) {
+    return this.run(
+      'POST',
+      `${thread(id)}/messages/${encodeURIComponent(messageId)}/receipt`,
+      z.null(),
+      { stage },
+      signal,
+    );
+  }
+
   download(id: string, attachmentId: string) {
     return this.run(
       'POST',

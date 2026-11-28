@@ -14,3 +14,7 @@
 Integration setup requires an elected MongoDB primary at a loopback `chatapp_test` origin. Each test uses a randomly named database and drops it afterward. The storage test can use an independent bucket on a local VersityGW instance and removes it afterward. Without the test S3 environment, attachment domain tests substitute a deterministic in-process storage service. CI supplies the real service and random credentials.
 
 For a local full stack, start the Compose services described in [Stage 5 implementation](STAGE_5_IMPLEMENTATION.md). Export `CHATAPP_TEST_DATABASE_URL`, `CHATAPP_TEST_S3_ENDPOINT`, `CHATAPP_TEST_S3_ACCESS_KEY_ID` and `CHATAPP_TEST_S3_SECRET_ACCESS_KEY` from the local setup before invoking the test command. Keep the API test signing key and database isolated from developer data.
+
+## Stage 7 checks
+
+Use `npm test` for SQLite v3, cursor rollback, draft process kill, replay overlap, duplicate projection and foreground/read eligibility. Use `npm run test:db` with the documented replica set and object store for authenticated WebSocket and REST tests. These cover relay lease recovery, presence, typing, access loss, scoped replay, receipt progression and legacy regression. Use the native gate in [test evidence](TEST_EVIDENCE.md#stage-7-verification) for foreground/background, force-close, account switch, permissions and two-device rendering.

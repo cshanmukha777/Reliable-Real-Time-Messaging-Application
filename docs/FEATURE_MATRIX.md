@@ -55,3 +55,17 @@ See the [Stage 5 test evidence](TEST_EVIDENCE.md).
 | 15 | Typing indicators | Missing | Planned only. Verify room scope, expiry, rate limiting and cleanup on disconnect. | 7 |
 | 16 | Complete read receipts | Partially implemented | SQL receipt rows and read timestamps only. Verify per-recipient/group counts, multiple devices and offline replay. | 7 |
 | 17 | Sender-only deletion | Partially implemented | SQL `deleted_at` column. Verify sender authorization, repeat deletion, cache/search removal and reconnect propagation. | 5, 7 |
+
+
+## Stage 7 update
+
+| Capability | Evidence |
+| --- | --- |
+| Live messages and tombstones | Authenticated Socket.IO hints and canonical REST replay against MongoDB and SQLite |
+| Offline reconnect and revocation | Durable cursors, retention rebase, lease reclaim, replay and authorization tests |
+| Delivered/read, group counts | Unique eligible receipt targets and monotonic REST acknowledgments |
+| Presence and typing | Real socket sessions, multi-device disconnect checks and typing expiry |
+| Draft commit and queued payload preservation | SQLite process kill immediately after confirmed save |
+| Native app experience | Native iOS and Android smoke gate pending |
+
+See [Stage 7 verification](TEST_EVIDENCE.md#stage-7-verification).
