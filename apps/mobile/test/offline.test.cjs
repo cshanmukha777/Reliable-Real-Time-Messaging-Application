@@ -487,11 +487,22 @@ test('the latest acknowledged draft edit survives an immediate process kill', as
   const before = await setup(path);
   const operation = await queued(before);
   await before.db.close();
-  const child = spawnSync(process.execPath, [join(__dirname, 'offline-restart.cjs'), path, thread, operation, 'draft-kill']);
+  const child = spawnSync(process.execPath, [
+    join(__dirname, 'offline-restart.cjs'),
+    path,
+    thread,
+    operation,
+    'draft-kill',
+  ]);
   assert.equal(child.signal, 'SIGKILL');
   const after = await setup(path);
   try {
     assert.equal((await after.getDraft(thread)).body, 'Just committed edit');
-    assert.equal((await after.thread(thread)).rows[0].message.body, 'Saved locally');
-  } finally { await after.db.close(); }
+    assert.equal(
+      (await after.thread(thread)).rows[0].message.body,
+      'Saved locally',
+    );
+  } finally {
+    await after.db.close();
+  }
 });

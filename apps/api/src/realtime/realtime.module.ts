@@ -8,8 +8,8 @@ import { SyncController, SyncThrottle } from './sync.controller';
 import { SyncService } from './sync.service';
 
 @Module({
-  imports:[AuthModule,DatabaseModule,MessagingModule],
-  controllers:[SyncController],
-  providers:[SyncService,SyncThrottle,RealtimeGateway,EventRelay],
+  imports: [AuthModule, DatabaseModule, MessagingModule],
+  controllers: [SyncController],
+  providers: [SyncService, SyncThrottle, RealtimeGateway, EventRelay],
 })
 export class RealtimeModule {}

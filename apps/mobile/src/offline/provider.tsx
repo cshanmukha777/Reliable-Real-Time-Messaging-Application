@@ -79,7 +79,7 @@ function AccountData({
   useEffect(() => {
     let current = true;
     let foreground = AppState.currentState !== 'background';
-    let unsubscribe: (()=>void) | undefined;
+    let unsubscribe: (() => void) | undefined;
     let owned: Omit<Services, 'storageError'> | undefined;
     async function start() {
       const scope = scopeRef.current;
@@ -137,7 +137,13 @@ function AccountData({
           store.notify();
         },
       });
-      const realtime=new RealtimeClient(manager,api,new RealtimeProjection(store),eligible,()=>store.notify());
+      const realtime = new RealtimeClient(
+        manager,
+        api,
+        new RealtimeProjection(store),
+        eligible,
+        () => store.notify(),
+      );
       owned = {
         store,
         realtime,
@@ -152,7 +158,10 @@ function AccountData({
       setServices(owned);
       worker.start();
       realtime.start();
-      unsubscribe=manager.subscribe(()=>{if(eligible())realtime.tokenChanged();else realtime.stop();});
+      unsubscribe = manager.subscribe(() => {
+        if (eligible()) realtime.tokenChanged();
+        else realtime.stop();
+      });
       // Stage imports may be interrupted before the draft is committed.
       void clean()
         .then(async () => {
@@ -171,8 +180,7 @@ function AccountData({
       if (foreground) {
         owned?.worker.start();
         owned?.realtime.start();
-      }
-      else if (owned) {
+      } else if (owned) {
         owned.realtime.stop();
         void owned.worker.stop();
         void owned.drafts.flushAll().catch(() => undefined);

@@ -179,7 +179,14 @@ export class OfflineStore {
           operation: m.operation_id,
           error: m.error,
           file: m.file ? (JSON.parse(m.file) as Stage) : null,
-          receipt: m.eligible === null ? null : { eligible:m.eligible,delivered:m.delivered ?? 0,read:m.read_count ?? 0 },
+          receipt:
+            m.eligible === null
+              ? null
+              : {
+                  eligible: m.eligible,
+                  delivered: m.delivered ?? 0,
+                  read: m.read_count ?? 0,
+                },
         }),
       ),
     };
@@ -558,10 +565,18 @@ export class OfflineStore {
 
   async revokeIn(tx: SqlExecutor, id: string, clearRoster = true) {
     this.accessVersion++;
-    if (clearRoster) await tx.run("DELETE FROM realtime_streams WHERE stream='CONVERSATION' AND id=?",id);
-    else await tx.run("UPDATE realtime_streams SET cursor=-1,older=NULL WHERE stream='CONVERSATION' AND id=?",id);
-    await tx.run('DELETE FROM receipt_projection WHERE conversation_id=?',id);
-    await tx.run('DELETE FROM receipt_ack WHERE conversation_id=?',id);
+    if (clearRoster)
+      await tx.run(
+        "DELETE FROM realtime_streams WHERE stream='CONVERSATION' AND id=?",
+        id,
+      );
+    else
+      await tx.run(
+        "UPDATE realtime_streams SET cursor=-1,older=NULL WHERE stream='CONVERSATION' AND id=?",
+        id,
+      );
+    await tx.run('DELETE FROM receipt_projection WHERE conversation_id=?', id);
+    await tx.run('DELETE FROM receipt_ack WHERE conversation_id=?', id);
     await tx.run('UPDATE conversations SET active=0 WHERE id=?', id);
     if (clearRoster) {
       await tx.run('DELETE FROM members WHERE conversation_id=?', id);

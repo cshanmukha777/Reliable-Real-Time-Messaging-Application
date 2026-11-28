@@ -40,7 +40,7 @@ export function ConnectedThread({ id }: { id: string }) {
   const [locals, setLocals] = useState<LocalMessage[]>([]);
   const [active, setActive] = useState(true);
   const [ready, setReady] = useState(false);
-  const [olderCursor,setOlderCursor] = useState<string | null>(null);
+  const [olderCursor, setOlderCursor] = useState<string | null>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -160,21 +160,40 @@ export function ConnectedThread({ id }: { id: string }) {
     }, [load, drafts, id]),
   );
 
-  useFocusEffect(useCallback(()=>{
-    focused.current=true;
-    const leave=realtime.watch(id);
-    return ()=>{focused.current=false;leave();};
-  },[id,realtime]));
+  useFocusEffect(
+    useCallback(() => {
+      focused.current = true;
+      const leave = realtime.watch(id);
+      return () => {
+        focused.current = false;
+        leave();
+      };
+    }, [id, realtime]),
+  );
 
-  useEffect(()=>{
-    let current=true;
-    void realtime.historyCursor(id).then((older)=>{if(current)setOlderCursor(older??null);}).catch(()=>undefined);
-    return ()=>{current=false;};
-  },[id,realtime,version]);
+  useEffect(() => {
+    let current = true;
+    void realtime
+      .historyCursor(id)
+      .then((older) => {
+        if (current) setOlderCursor(older ?? null);
+      })
+      .catch(() => undefined);
+    return () => {
+      current = false;
+    };
+  }, [id, realtime, version]);
 
-  const onVisible=useCallback((ids:string[])=>{
-    realtime.visible(id,ids,()=>focused.current&&AppState.currentState==='active');
-  },[id,realtime]);
+  const onVisible = useCallback(
+    (ids: string[]) => {
+      realtime.visible(
+        id,
+        ids,
+        () => focused.current && AppState.currentState === 'active',
+      );
+    },
+    [id, realtime],
+  );
 
   function edit(next: Draft) {
     setDraft(next);
@@ -183,11 +202,16 @@ export function ConnectedThread({ id }: { id: string }) {
     setSavingDraft(true);
     setSendError('');
     void drafts.edit(id, next).then(
-      () => { if (alive.current && editRevision.current === revision) setSavingDraft(false); },
-      () => { if (alive.current && editRevision.current === revision) {
-        setSavingDraft(false);
-        setSendError('Draft is not saved. Edit again or retry sending.');
-      } },
+      () => {
+        if (alive.current && editRevision.current === revision)
+          setSavingDraft(false);
+      },
+      () => {
+        if (alive.current && editRevision.current === revision) {
+          setSavingDraft(false);
+          setSendError('Draft is not saved. Edit again or retry sending.');
+        }
+      },
     );
   }
 
@@ -208,7 +232,7 @@ export function ConnectedThread({ id }: { id: string }) {
     try {
       await drafts.flush(id);
       await store.enqueue(id, randomUUID(), person);
-      realtime.compose(id,false);
+      realtime.compose(id, false);
       setDraft({ body: '', file: null });
       worker.wake();
     } catch {
@@ -308,12 +332,21 @@ export function ConnectedThread({ id }: { id: string }) {
     if ('divider' in entry) return entry;
     const local = byId.get(entry.id);
     if (!local?.state || local.state === 'CONFIRMED') {
-      const receipt=local?.receipt;
-      if(entry.direction!=='outgoing' || !receipt?.eligible)return entry;
-      const status=receipt.read===receipt.eligible?'read':receipt.delivered===receipt.eligible?'delivered':'sent';
-      return {...entry,status,...(group && {
-        stateDetail:`Delivered ${receipt.delivered} of ${receipt.eligible} · Read ${receipt.read} of ${receipt.eligible}`,
-      })};
+      const receipt = local?.receipt;
+      if (entry.direction !== 'outgoing' || !receipt?.eligible) return entry;
+      const status =
+        receipt.read === receipt.eligible
+          ? 'read'
+          : receipt.delivered === receipt.eligible
+            ? 'delivered'
+            : 'sent';
+      return {
+        ...entry,
+        status,
+        ...(group && {
+          stateDetail: `Delivered ${receipt.delivered} of ${receipt.eligible} · Read ${receipt.read} of ${receipt.eligible}`,
+        }),
+      };
     }
     const failed = ['FAILED', 'BLOCKED_AUTH', 'BLOCKED_ACCESS'].includes(
       local.state,
@@ -345,10 +378,14 @@ export function ConnectedThread({ id }: { id: string }) {
   });
   const file = draft.file;
   const online = realtime.presence(id);
-  const typingId = [...(realtime.typing(id)??[])].find((userId)=>userId!==accountScope.userId);
-  const typingName = conversation.members.find((member)=>member.id===typingId)?.displayName;
-  const connection=realtime.status();
-  const older=olderCursor ?? cursor;
+  const typingId = [...(realtime.typing(id) ?? [])].find(
+    (userId) => userId !== accountScope.userId,
+  );
+  const typingName = conversation.members.find(
+    (member) => member.id === typingId,
+  )?.displayName;
+  const connection = realtime.status();
+  const older = olderCursor ?? cursor;
   return (
     <>
       <ThreadScreen
@@ -356,15 +393,22 @@ export function ConnectedThread({ id }: { id: string }) {
         subtitle={
           group
             ? `${conversation.members.length} members${online ? ` · ${online.size} online` : ''}`
-            : conversation.members.some((member)=>member.id!==accountScope.userId&&online?.has(member.id))
-              ? 'Online' : 'Direct conversation'
+            : conversation.members.some(
+                  (member) =>
+                    member.id !== accountScope.userId && online?.has(member.id),
+                )
+              ? 'Online'
+              : 'Direct conversation'
         }
         people={conversationPeople(conversation, accountScope.userId)}
         group={group}
         entries={entries}
-        offline={connection==='offline' && active && !!loadError}
-        online={conversation.members.some((member)=>member.id!==accountScope.userId&&online?.has(member.id))}
-        {...(active&&typingName&&{typing:typingName})}
+        offline={connection === 'offline' && active && !!loadError}
+        online={conversation.members.some(
+          (member) =>
+            member.id !== accountScope.userId && online?.has(member.id),
+        )}
+        {...(active && typingName && { typing: typingName })}
         onVisible={onVisible}
         onRetry={(operation) => {
           void store
@@ -411,7 +455,10 @@ export function ConnectedThread({ id }: { id: string }) {
               icon="RotateCcw"
               label="Refresh"
               disabled={loading || sending}
-              onPress={() => {realtime.retry();void load();}}
+              onPress={() => {
+                realtime.retry();
+                void load();
+              }}
             />
             {older && (
               <AppButton
@@ -419,7 +466,12 @@ export function ConnectedThread({ id }: { id: string }) {
                 label="Older messages"
                 disabled={loading || sending}
                 onPress={() => {
-                  if(olderCursor) void realtime.older(id,olderCursor).catch(()=>setActionError('Couldn’t load older messages.'));
+                  if (olderCursor)
+                    void realtime
+                      .older(id, olderCursor)
+                      .catch(() =>
+                        setActionError('Couldn’t load older messages.'),
+                      );
                   else void load(older);
                 }}
               />
@@ -438,10 +490,20 @@ export function ConnectedThread({ id }: { id: string }) {
                 detail="Start the conversation with a message."
               />
             )}
-            {connection!=='live' && active && <AppText variant="caption" accessibilityLiveRegion="polite">
-              {connection==='replaying' ? 'Syncing messages…' : connection==='offline' ? 'Live updates paused' : 'Reconnecting live updates…'}
-            </AppText>}
-            {savingDraft && <AppText variant="caption" accessibilityLiveRegion="polite">Saving draft…</AppText>}
+            {connection !== 'live' && active && (
+              <AppText variant="caption" accessibilityLiveRegion="polite">
+                {connection === 'replaying'
+                  ? 'Syncing messages…'
+                  : connection === 'offline'
+                    ? 'Live updates paused'
+                    : 'Reconnecting live updates…'}
+              </AppText>
+            )}
+            {savingDraft && (
+              <AppText variant="caption" accessibilityLiveRegion="polite">
+                Saving draft…
+              </AppText>
+            )}
             {!!actionError && <RequestError message={actionError} />}
             {openingFile && (
               <AppText variant="caption" accessibilityLiveRegion="polite">

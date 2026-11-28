@@ -14,13 +14,19 @@ export class DraftWriter {
 
   edit(id: string, draft: Draft) {
     const prior = this.pending.get(id);
-    const write = (prior?.write.catch(() => undefined) ?? Promise.resolve())
-      .then(() => this.store.saveDraft(id, draft));
+    const write = (
+      prior?.write.catch(() => undefined) ?? Promise.resolve()
+    ).then(() => this.store.saveDraft(id, draft));
     const pending = { draft, write, failed: false };
     this.pending.set(id, pending);
     void write.then(
-      () => { if (this.pending.get(id) === pending) this.pending.delete(id); },
-      () => { pending.failed = true; this.onError(); },
+      () => {
+        if (this.pending.get(id) === pending) this.pending.delete(id);
+      },
+      () => {
+        pending.failed = true;
+        this.onError();
+      },
     );
     return write;
   }

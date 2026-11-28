@@ -319,10 +319,15 @@ export class SessionManager {
   }
 
   socketAuthentication() {
-    return this.authorized(async(token)=>({token,generation:this.tokenGeneration}));
+    return this.authorized(async (token) => ({
+      token,
+      generation: this.tokenGeneration,
+    }));
   }
 
-  accessGeneration() {return this.tokenGeneration;}
+  accessGeneration() {
+    return this.tokenGeneration;
+  }
 
   async authorized<T>(request: (access: string) => Promise<T>): Promise<T> {
     if (this.closing) throw new Error('Session is closing.');

@@ -149,7 +149,8 @@ export function MessageBubble({
           </AppText>
           {message.status && <MessageStatus status={message.status} />}
           {outgoing &&
-            (!message.status || ['sent','delivered','read'].includes(message.status)) &&
+            (!message.status ||
+              ['sent', 'delivered', 'read'].includes(message.status)) &&
             onDelete && (
               <IconButton
                 icon="Trash2"
@@ -240,29 +241,37 @@ export function ThreadScreen({
   beforeHistory?: React.ReactNode;
   afterHistory?: React.ReactNode;
   onSearch?: () => void;
-  onVisible?: (ids:string[])=>void;
+  onVisible?: (ids: string[]) => void;
   inset?: boolean;
 }) {
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
-  const bounds=useRef(new Map<string,{y:number;height:number}>());
-  const viewport=useRef({offset:0,height:0});
-  const incoming=useRef<string[]>([]);
-  incoming.current=entries.flatMap((entry)=>!('divider'in entry)&&entry.direction==='incoming'?[entry.id]:[]);
-  const report=useCallback(()=>{
-    if(!onVisible)return;
-    const {offset,height}=viewport.current;
-    const visible=visibleRows(bounds.current,offset,height,incoming.current);
-    if(visible.length)onVisible(visible);
-  },[onVisible]);
-  const newest=entries.at(-1);
+  const bounds = useRef(new Map<string, { y: number; height: number }>());
+  const viewport = useRef({ offset: 0, height: 0 });
+  const incoming = useRef<string[]>([]);
+  incoming.current = entries.flatMap((entry) =>
+    !('divider' in entry) && entry.direction === 'incoming' ? [entry.id] : [],
+  );
+  const report = useCallback(() => {
+    if (!onVisible) return;
+    const { offset, height } = viewport.current;
+    const visible = visibleRows(
+      bounds.current,
+      offset,
+      height,
+      incoming.current,
+    );
+    if (visible.length) onVisible(visible);
+  }, [onVisible]);
+  const newest = entries.at(-1);
   const last = newest?.id;
-  const nearEnd=useRef(true);
+  const nearEnd = useRef(true);
   const scrollPending = useRef(true);
-  useEffect(()=>{
-    const keys=new Set(incoming.current);
-    for(const key of bounds.current.keys())if(!keys.has(key))bounds.current.delete(key);
+  useEffect(() => {
+    const keys = new Set(incoming.current);
+    for (const key of bounds.current.keys())
+      if (!keys.has(key)) bounds.current.delete(key);
     report();
-  },[entries,report]);
+  }, [entries, report]);
   useEffect(() => {
     if (last && nearEnd.current) scrollPending.current = true;
   }, [last]);
@@ -325,10 +334,20 @@ export function ThreadScreen({
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
           scrollEventThrottle={100}
-          onLayout={({nativeEvent})=>{viewport.current.height=nativeEvent.layout.height;report();}}
-          onScroll={({nativeEvent})=>{
-            viewport.current={offset:nativeEvent.contentOffset.y,height:nativeEvent.layoutMeasurement.height};
-            nearEnd.current=nativeEvent.contentSize.height-nativeEvent.contentOffset.y-nativeEvent.layoutMeasurement.height<100;
+          onLayout={({ nativeEvent }) => {
+            viewport.current.height = nativeEvent.layout.height;
+            report();
+          }}
+          onScroll={({ nativeEvent }) => {
+            viewport.current = {
+              offset: nativeEvent.contentOffset.y,
+              height: nativeEvent.layoutMeasurement.height,
+            };
+            nearEnd.current =
+              nativeEvent.contentSize.height -
+                nativeEvent.contentOffset.y -
+                nativeEvent.layoutMeasurement.height <
+              100;
             report();
           }}
           onContentSizeChange={() => {
@@ -363,19 +382,22 @@ export function ThreadScreen({
               next.direction !== entry.direction ||
               next.author !== entry.author;
             return (
-              <View key={entry.id} onLayout={({nativeEvent})=>{
-                if(!onVisible)return;
-                bounds.current.set(entry.id,nativeEvent.layout);
-                report();
-              }}>
-              <MessageBubble
-                message={entry}
-                grouped={grouped}
-                showMeta={showMeta}
-                {...(onRetry && { onRetry })}
-                {...(onDelete && { onDelete })}
-                {...(onOpenAttachment && { onOpenAttachment })}
-              />
+              <View
+                key={entry.id}
+                onLayout={({ nativeEvent }) => {
+                  if (!onVisible) return;
+                  bounds.current.set(entry.id, nativeEvent.layout);
+                  report();
+                }}
+              >
+                <MessageBubble
+                  message={entry}
+                  grouped={grouped}
+                  showMeta={showMeta}
+                  {...(onRetry && { onRetry })}
+                  {...(onDelete && { onDelete })}
+                  {...(onOpenAttachment && { onOpenAttachment })}
+                />
               </View>
             );
           })}

@@ -42,7 +42,11 @@ export async function migrate(
   account = false,
 ): Promise<void> {
   const versions = account
-    ? [...migrations, { version: 2, sql: offlineSchema }, { version: 3, sql: realtimeSchema }]
+    ? [
+        ...migrations,
+        { version: 2, sql: offlineSchema },
+        { version: 3, sql: realtimeSchema },
+      ]
     : migrations;
   await database.transaction(async (tx) => {
     const row = await tx.first<{ user_version: number }>('PRAGMA user_version');
