@@ -198,6 +198,10 @@ export class RealtimeClient {
     void this.projection.read(id,messages,current).then((changed)=>{if(changed)this.kick();}).catch(()=>undefined);
   }
 
+  async historyCursor(id:string) {
+    return (await this.projection.cursor('CONVERSATION',id))?.older;
+  }
+
   async older(id:string,cursor:string) {
     const signal=this.controller?.signal;
     if(!signal || !this.current())return false;

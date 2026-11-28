@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   Animated,
   Easing,
@@ -18,6 +18,7 @@ import {
   Divider,
   IconButton,
 } from '../components/primitives';
+import { visibleRows } from '../realtime/visibility';
 import { OfflineBanner } from '../components/feedback';
 import { Avatar, AvatarGroup, type Person } from './avatar';
 import { AttachmentPreview, type Attachment } from './attachments';
@@ -148,7 +149,7 @@ export function MessageBubble({
           </AppText>
           {message.status && <MessageStatus status={message.status} />}
           {outgoing &&
-            (!message.status || message.status === 'sent') &&
+            (!message.status || ['sent','delivered','read'].includes(message.status)) &&
             onDelete && (
               <IconButton
                 icon="Trash2"
@@ -219,6 +220,7 @@ export function ThreadScreen({
   beforeHistory,
   afterHistory,
   onSearch,
+  onVisible,
   inset = true,
 }: {
   name: string;
@@ -238,13 +240,31 @@ export function ThreadScreen({
   beforeHistory?: React.ReactNode;
   afterHistory?: React.ReactNode;
   onSearch?: () => void;
+  onVisible?: (ids:string[])=>void;
   inset?: boolean;
 }) {
   const scroll = useRef<React.ComponentRef<typeof ScrollView>>(null);
-  const last = entries.at(-1)?.id;
+  const bounds=useRef(new Map<string,{y:number;height:number}>());
+  const viewport=useRef({offset:0,height:0});
+  const incoming=useRef<string[]>([]);
+  incoming.current=entries.flatMap((entry)=>!('divider'in entry)&&entry.direction==='incoming'?[entry.id]:[]);
+  const report=useCallback(()=>{
+    if(!onVisible)return;
+    const {offset,height}=viewport.current;
+    const visible=visibleRows(bounds.current,offset,height,incoming.current);
+    if(visible.length)onVisible(visible);
+  },[onVisible]);
+  const newest=entries.at(-1);
+  const last = newest?.id;
+  const nearEnd=useRef(true);
   const scrollPending = useRef(true);
+  useEffect(()=>{
+    const keys=new Set(incoming.current);
+    for(const key of bounds.current.keys())if(!keys.has(key))bounds.current.delete(key);
+    report();
+  },[entries,report]);
   useEffect(() => {
-    if (last) scrollPending.current = true;
+    if (last && nearEnd.current) scrollPending.current = true;
   }, [last]);
   return (
     <AppScreen inset={inset}>
@@ -304,6 +324,13 @@ export function ThreadScreen({
           contentContainerStyle={styles.history}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
+          scrollEventThrottle={100}
+          onLayout={({nativeEvent})=>{viewport.current.height=nativeEvent.layout.height;report();}}
+          onScroll={({nativeEvent})=>{
+            viewport.current={offset:nativeEvent.contentOffset.y,height:nativeEvent.layoutMeasurement.height};
+            nearEnd.current=nativeEvent.contentSize.height-nativeEvent.contentOffset.y-nativeEvent.layoutMeasurement.height<100;
+            report();
+          }}
           onContentSizeChange={() => {
             if (scrollPending.current) {
               scrollPending.current = false;
@@ -336,8 +363,12 @@ export function ThreadScreen({
               next.direction !== entry.direction ||
               next.author !== entry.author;
             return (
+              <View key={entry.id} onLayout={({nativeEvent})=>{
+                if(!onVisible)return;
+                bounds.current.set(entry.id,nativeEvent.layout);
+                report();
+              }}>
               <MessageBubble
-                key={entry.id}
                 message={entry}
                 grouped={grouped}
                 showMeta={showMeta}
@@ -345,6 +376,7 @@ export function ThreadScreen({
                 {...(onDelete && { onDelete })}
                 {...(onOpenAttachment && { onOpenAttachment })}
               />
+              </View>
             );
           })}
           {afterHistory}
