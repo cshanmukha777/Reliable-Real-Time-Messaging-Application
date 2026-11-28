@@ -12,6 +12,8 @@ const { createApplication } = require('../dist/application.js');
 const { loadEnvironment } = require('../dist/config/environment.js');
 const { EventRelay } = require('../dist/realtime/relay.js');
 const { RealtimeGateway } = require('../dist/realtime/gateway.js');
+const { allowUpgrade } = require('../dist/realtime/socket-adapter.js');
+const { RealtimeClient } = require('../../mobile/src/realtime/client.ts');
 const { MessagingApi } = require('../../mobile/src/messaging/api.ts');
 const { OfflineStore } = require('../../mobile/src/offline/store.ts');
 const {
@@ -171,6 +173,46 @@ test(
     const account = (actor, after = 0) =>
       request('sync/account?after=' + after, actor);
 
+    await t.test(
+      'production realtime trusts TLS and an explicit browser origin',
+      () => {
+        const production = {
+          NODE_ENV: 'production',
+          CORS_ORIGINS: ['https://app.example.test'],
+        };
+        const forwarded = {
+          host: 'api.example.test',
+          'x-forwarded-proto': 'https',
+        };
+        const allowed = (headers, peer, encrypted = false) =>
+          allowUpgrade(production, {
+            headers,
+            socket: { remoteAddress: peer, encrypted },
+          });
+        assert.equal(allowed(forwarded, '203.0.113.5'), false);
+        assert.equal(allowed(forwarded, '127.0.0.1'), true);
+        assert.equal(
+          allowed({ origin: 'https://app.example.test' }, '203.0.113.5', true),
+          true,
+        );
+        assert.equal(
+          allowed(
+            { origin: 'https://other.example.test' },
+            '203.0.113.5',
+            true,
+          ),
+          false,
+        );
+        assert.equal(
+          allowed(
+            { ...forwarded, origin: 'http://api.example.test' },
+            '127.0.0.1',
+          ),
+          false,
+        );
+      },
+    );
+
     await t.test('signed session and origin gates', async () => {
       const claims = jwt.decode(ada.accessToken);
       const expired = jwt.sign(
@@ -325,6 +367,7 @@ test(
         store,
         projection,
         engine: new ReplayEngine(projection, api),
+        api,
         paths,
       };
     };
@@ -512,6 +555,76 @@ test(
           true,
         );
         await local.store.db.close();
+      },
+    );
+
+    await t.test(
+      'the shipped mobile connection manager bootstraps, resumes and tears down scope',
+      async () => {
+        const device = await aStore(ben, join(storage, 'managed-client.db'));
+        let enabled = true;
+        let generation = 1;
+        let connects = 0;
+        const session = {
+          origin,
+          accessGeneration: () => generation,
+          socketAuthentication: async () => {
+            connects++;
+            return { token: ben.accessToken, generation };
+          },
+          refresh: async () => undefined,
+        };
+        const client = new RealtimeClient(
+          session,
+          device.api,
+          device.projection,
+          () => enabled,
+          () => undefined,
+        );
+        async function until(condition) {
+          for (let tick = 0; tick < 150; tick++) {
+            if (await condition()) return;
+            await sleep(40);
+          }
+          assert.fail(
+            'The mobile realtime client did not reach the expected state',
+          );
+        }
+        try {
+          client.start();
+          await until(() => client.status() === 'live');
+          client.watch(id);
+          const sent = await send(
+            ada,
+            id,
+            'Live through the shipped mobile transport',
+          );
+          await until(async () =>
+            Boolean(
+              await device.store.db.first(
+                'SELECT server_id FROM messages WHERE server_id=?',
+                sent.id,
+              ),
+            ),
+          );
+          generation++;
+          client.tokenChanged();
+          await until(() => connects === 2 && client.status() === 'live');
+          assert.equal(
+            device.paths.some((path) => path.endsWith('/messages')),
+            false,
+          );
+          enabled = false;
+          await client.close();
+          assert.equal(client.status(), 'offline');
+          const seen = device.paths.length;
+          await send(ada, id, 'Write after this account scope closed');
+          await sleep(650);
+          assert.equal(device.paths.length, seen);
+        } finally {
+          await client.close();
+          await device.store.db.close();
+        }
       },
     );
 
