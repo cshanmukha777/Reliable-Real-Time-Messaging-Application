@@ -1,3 +1,4 @@
+import type { ReceiptCounts } from '@chatapp/contracts';
 import {
   clientOperationIdSchema,
   uploadInputSchema,
@@ -37,6 +38,7 @@ export type LocalMessage = {
   error: string | null;
   operation: string | null;
   file: Stage | null;
+  receipt: ReceiptCounts | null;
 };
 const inFlight = "'CLAIMED','UPLOADING','SENDING'";
 const due = `((state IN ('QUEUED','RETRY_WAIT') AND eligible_at <= ?) OR (state IN (${inFlight}) AND lease_until <= ?))`;
@@ -82,7 +84,7 @@ export class OfflineStore {
     this.changed();
   }
 
-  private async cacheConversation(tx: SqlExecutor, row: Conversation) {
+  async cacheConversation(tx: SqlExecutor, row: Conversation) {
     if (!row.members.some((member) => member.id === this.userId)) return;
     await tx.run(
       `INSERT INTO conversations(id,data,updated_at) VALUES (?,?,?)
@@ -148,12 +150,16 @@ export class OfflineStore {
       error: string | null;
       operation_id: string | null;
       file: string | null;
+      eligible: number | null;
+      delivered: number | null;
+      read_count: number | null;
     }>(
       `
-      SELECT m.data, o.state, o.error, m.operation_id, sf.metadata AS file
+      SELECT m.data, o.state, o.error, m.operation_id, sf.metadata AS file, rp.eligible, rp.delivered, rp.read_count
       FROM messages m LEFT JOIN outbox_operations o ON o.id=m.operation_id
       LEFT JOIN outbox_attachments a ON a.operation_id=o.id
       LEFT JOIN staged_files sf ON sf.id=a.file_id
+      LEFT JOIN receipt_projection rp ON rp.message_id=m.server_id
       WHERE m.conversation_id=? AND (m.server_id IS NULL OR ?=1)
       ORDER BY m.created_at,m.local_id`,
       id,
@@ -169,6 +175,7 @@ export class OfflineStore {
           operation: m.operation_id,
           error: m.error,
           file: m.file ? (JSON.parse(m.file) as Stage) : null,
+          receipt: m.eligible === null ? null : { eligible:m.eligible,delivered:m.delivered ?? 0,read:m.read_count ?? 0 },
         }),
       ),
     };
@@ -448,7 +455,7 @@ export class OfflineStore {
     this.changed();
   }
 
-  private async merge(
+  async merge(
     tx: SqlExecutor,
     message: Message,
     operation: string | undefined,
@@ -545,8 +552,11 @@ export class OfflineStore {
     this.changed();
   }
 
-  private async revokeIn(tx: SqlExecutor, id: string, clearRoster = true) {
+  async revokeIn(tx: SqlExecutor, id: string, clearRoster = true) {
     this.accessVersion++;
+    await tx.run("DELETE FROM realtime_streams WHERE stream='CONVERSATION' AND id=?",id);
+    await tx.run('DELETE FROM receipt_projection WHERE conversation_id=?',id);
+    await tx.run('DELETE FROM receipt_ack WHERE conversation_id=?',id);
     await tx.run('UPDATE conversations SET active=0 WHERE id=?', id);
     if (clearRoster) {
       await tx.run('DELETE FROM members WHERE conversation_id=?', id);

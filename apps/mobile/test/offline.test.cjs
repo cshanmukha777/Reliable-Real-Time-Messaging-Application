@@ -91,7 +91,7 @@ test('account schema upgrades in place and preserves existing preferences and di
     await probeRepository(db).create('before-upgrade');
     await migrate(db, true);
     await migrate(db, true);
-    assert.equal((await db.first('PRAGMA user_version')).user_version, 2);
+    assert.equal((await db.first('PRAGMA user_version')).user_version, 3);
     assert.equal((await db.first('PRAGMA foreign_keys')).foreign_keys, 1);
     assert.equal(await preferencesRepository(db).get('appearance'), 'dark');
     assert.equal(await probeRepository(db).exists('before-upgrade'), true);

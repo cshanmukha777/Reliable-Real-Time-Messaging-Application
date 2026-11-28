@@ -23,7 +23,7 @@ export class RealtimeAdapter extends IoAdapter {
       transports:['websocket'],
       maxHttpBufferSize:8192,
       pingInterval:20_000,pingTimeout:12_000,
-      allowRequest:(request,accept)=>accept(null,allowUpgrade(this.environment,request)),
+      allowRequest:(request:IncomingMessage,accept:(error:string|null,allowed:boolean)=>void)=>accept(null,allowUpgrade(this.environment,request)),
     });
   }
 }
