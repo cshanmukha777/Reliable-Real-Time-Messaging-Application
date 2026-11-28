@@ -32,6 +32,8 @@ type Connected = {
   rooms: Set<string>;
   expiry: ReturnType<typeof setTimeout>;
   commands: number;
+  pending: number;
+  tail: Promise<void>;
   window: number;
 };
 const room = (id: string) => `conversation:${id}`;
@@ -131,6 +133,8 @@ export class RealtimeGateway
       rooms: new Set(),
       expiry,
       commands: 0,
+      pending: 0,
+      tail: Promise.resolve(),
       window: 0,
     };
     this.live.set(socket.id, state);
@@ -203,17 +207,21 @@ export class RealtimeGateway
       state.commands = 0;
     }
     const ack = typeof reply === 'function' ? (reply as Ack) : () => undefined;
-    if (++state.commands > 32) {
+    if (++state.commands > 32 || state.pending >= 32) {
       ack({ ok: false });
       return;
     }
-    void this.authorized(state)
-      .then(async (valid) => {
-        if (!valid) return ack({ ok: false });
+    state.pending++;
+    state.tail = state.tail
+      .then(async () => {
+        if (!(await this.authorized(state))) return ack({ ok: false });
         const snapshotRequired = await work();
         ack({ ok: true, ...(snapshotRequired && { snapshotRequired: true }) });
       })
-      .catch(() => ack({ ok: false }));
+      .catch(() => ack({ ok: false }))
+      .finally(() => {
+        state.pending--;
+      });
   }
 
   private async watch(state: Connected, input: unknown) {

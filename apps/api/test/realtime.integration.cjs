@@ -172,6 +172,12 @@ test(
       request(base(id) + '/events?after=' + after, actor);
     const account = (actor, after = 0) =>
       request('sync/account?after=' + after, actor);
+    const afterAccount = (client, watermark) =>
+      waitFor(
+        client,
+        'available',
+        (event) => event.stream === 'ACCOUNT' && event.highWater > watermark,
+      );
 
     await t.test(
       'production realtime trusts TLS and an explicit browser origin',
@@ -275,6 +281,42 @@ test(
         data: { status: 'ACTIVE' },
       });
     });
+
+    await t.test(
+      'concurrent commands obey room, rate and packet limits',
+      async () => {
+        const groups = await Promise.all(
+          Array.from({ length: 5 }, (_, index) =>
+            request('conversations/group', ada, 'POST', {
+              title: 'Limit test ' + index,
+              userIds: [user(dev)],
+              clientGroupId: randomUUID(),
+            }),
+          ),
+        );
+        const probe = await connect(ada);
+        try {
+          const acknowledgments = await Promise.all(
+            groups.map(({ id }) => watch(probe, id)),
+          );
+          assert.equal(acknowledgments.filter((result) => result.ok).length, 4);
+          const id = groups[0].id;
+          const commands = await Promise.all(
+            Array.from({ length: 64 }, () =>
+              probe.timeout(5000).emitWithAck('typing', { id, active: false }),
+            ),
+          );
+          assert.ok(commands.some((result) => !result.ok));
+          assert.ok(commands.some((result) => result.ok));
+          const closed = waitFor(probe, 'disconnect');
+          probe.emit('typing', 'x'.repeat(10_000));
+          await closed;
+          assert.equal(probe.connected, false);
+        } finally {
+          probe.disconnect();
+        }
+      },
+    );
 
     const chat = await request('conversations/group', ada, 'POST', {
       title: 'Live group',
@@ -383,7 +425,7 @@ test(
         local.engine.probe();
         await run();
         const operation = randomUUID();
-        let notice = waitFor(b, 'available', (p) => p.stream === 'ACCOUNT');
+        let notice = afterAccount(b, (await account(ben)).highWater);
         const message = await send(ada, id, 'first live message', operation);
         const hint = await notice;
         assert.deepEqual(Object.keys(hint).sort(), [
@@ -508,7 +550,7 @@ test(
               record.id === message.id && record.deleted && record.body === '',
           ),
         );
-        notice = waitFor(b, 'available', (p) => p.stream === 'ACCOUNT');
+        notice = afterAccount(b, (await account(ben)).highWater);
         await request(base(id) + '/members/' + user(ben), ada, 'DELETE');
         const revoked = await notice;
         local.engine.hint(revoked);
@@ -561,6 +603,11 @@ test(
     await t.test(
       'the shipped mobile connection manager bootstraps, resumes and tears down scope',
       async () => {
+        const managed = await request('conversations/group', ada, 'POST', {
+          title: 'Managed connection',
+          userIds: [user(ben)],
+          clientGroupId: randomUUID(),
+        });
         const device = await aStore(ben, join(storage, 'managed-client.db'));
         let enabled = true;
         let generation = 1;
@@ -593,10 +640,10 @@ test(
         try {
           client.start();
           await until(() => client.status() === 'live');
-          client.watch(id);
+          client.watch(managed.id);
           const sent = await send(
             ada,
-            id,
+            managed.id,
             'Live through the shipped mobile transport',
           );
           await until(async () =>
@@ -618,7 +665,7 @@ test(
           await client.close();
           assert.equal(client.status(), 'offline');
           const seen = device.paths.length;
-          await send(ada, id, 'Write after this account scope closed');
+          await send(ada, managed.id, 'Write after this account scope closed');
           await sleep(650);
           assert.equal(device.paths.length, seen);
         } finally {
@@ -698,13 +745,18 @@ test(
     await t.test(
       'claim expiry, duplicate dispatch after publication and stale checkpoint fencing',
       async () => {
+        const relayed = await request('conversations/group', ada, 'POST', {
+          title: 'Lease recovery',
+          userIds: [user(ben), user(chi)],
+          clientGroupId: randomUUID(),
+        });
         await relay.onModuleDestroy();
         const now = Date.now();
         await db.realtimeEvent.updateMany({
           where: { publishedAt: null },
           data: { publishedAt: new Date(now) },
         });
-        const message = await send(ada, id, 'sent before relay crash');
+        const message = await send(ada, relayed.id, 'sent before relay crash');
         const when = new Date(Date.now() + 1000);
         const winners = await Promise.all([
           relay.claim(when),
