@@ -1,3 +1,4 @@
+import { appendChange } from '../realtime/events';
 import {
   BadRequestException,
   ConflictException,
@@ -72,9 +73,11 @@ export class Conversations {
           userId: id,
           active: true,
           visibleFrom: 1,
+          eventVisibleFrom: 1,
           role: group && id === userId ? 'OWNER' : 'MEMBER',
         })),
       });
+      await appendChange(tx,{type:'conversation.created',conversationId:row.id});
       return row.id;
     });
     return this.details(userId, id);
@@ -119,7 +122,7 @@ export class Conversations {
     });
   }
 
-  private async present(
+  async present(
     tx: MessagingDb,
     row: ConversationRow,
     membership: Membership,
@@ -179,12 +182,16 @@ export class Conversations {
           where: { id: target.id },
           data: { active: false },
         });
+        await tx.receipt.updateMany({where:{conversationId:id,recipientId:targetId,eligible:true},data:{eligible:false}});
+        await appendChange(tx,{type:'membership.revoked',conversationId:id,affectedUserId:targetId});
         return;
       }
+      if (target?.active && target.role === role) return;
       await this.users.verify(tx, [targetId]);
       const data = {
         role,
         active: true,
+        eventVisibleFrom: target?.active ? target.eventVisibleFrom ?? 1 : (conversation.eventSequence ?? 0) + 1,
         visibleFrom: target?.active
           ? target.visibleFrom
           : conversation.sequence + 1,
@@ -200,6 +207,7 @@ export class Conversations {
         })) > 32
       )
         throw new ConflictException();
+      await appendChange(tx,{type:target?.active?'membership.role':'membership.granted',conversationId:id,affectedUserId:targetId});
     });
     return this.details(userId, id);
   }

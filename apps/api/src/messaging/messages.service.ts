@@ -1,3 +1,4 @@
+import { appendChange } from '../realtime/events';
 import {
   ConflictException,
   ForbiddenException,
@@ -85,6 +86,16 @@ export class Messages {
         if (result.count !== input.attachmentIds.length)
           throw new NotFoundException();
       }
+      const recipients = await tx.membership.findMany({
+        where: { conversationId, active: true, userId: { not: userId } },
+        select: { userId: true },
+      });
+      if (recipients.length) await tx.receipt.createMany({
+        data: recipients.map(({userId: recipientId}) => ({
+          messageId: row.id, conversationId, recipientId, eligible: true, deliveredAt: null, readAt: null,
+        })),
+      });
+      await appendChange(tx,{type:'message.created',conversationId,messageId:row.id,messageSequence:row.sequence});
       return this.presentOne(tx, row);
     });
   }
@@ -105,11 +116,13 @@ export class Messages {
       });
       if (!row) throw new NotFoundException();
       if (row.senderId !== userId) throw new ForbiddenException();
-      if (!row.deletedAt)
+      if (!row.deletedAt) {
         await tx.message.update({
           where: { id },
           data: { deletedAt: new Date(), body: null, attachmentIds: [] },
         });
+        await appendChange(tx,{type:'message.deleted',conversationId,messageId:row.id,messageSequence:row.sequence});
+      }
     });
   }
 
@@ -226,7 +239,7 @@ export class Messages {
     return message;
   }
 
-  private async present(tx: MessagingDb, rows: Row[]): Promise<Message[]> {
+  async present(tx: MessagingDb, rows: Row[]): Promise<Message[]> {
     if (!rows.length) return [];
     const people = await this.users.profiles(tx, [
       ...new Set(rows.map((row) => row.senderId)),
